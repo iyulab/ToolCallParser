@@ -22,10 +22,17 @@ public class ToolCallParserFactoryTests
         Assert.Throws<ArgumentException>(() => ToolCallParserFactory.GetParser(Provider.Auto));
     }
 
-    [Fact]
-    public void GetParser_UnsupportedProvider_ThrowsNotSupportedException()
+    [Theory]
+    [InlineData(Provider.Google)]
+    [InlineData(Provider.Cohere)]
+    [InlineData(Provider.Bedrock)]
+    [InlineData(Provider.XAI)]
+    [InlineData(Provider.DeepSeek)]
+    public void GetParser_NewProviders_ReturnsParser(Provider provider)
     {
-        Assert.Throws<NotSupportedException>(() => ToolCallParserFactory.GetParser(Provider.Cohere));
+        var parser = ToolCallParserFactory.GetParser(provider);
+
+        Assert.NotNull(parser);
     }
 
     [Fact]
