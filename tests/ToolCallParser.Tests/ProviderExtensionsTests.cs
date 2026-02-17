@@ -112,10 +112,15 @@ public class ProviderExtensionsTests
     [InlineData(Provider.AzureOpenAI)]
     [InlineData(Provider.Anthropic)]
     [InlineData(Provider.Google)]
+    [InlineData(Provider.XAI)]
+    [InlineData(Provider.Mistral)]
     [InlineData(Provider.Cohere)]
+    [InlineData(Provider.DeepSeek)]
     [InlineData(Provider.Bedrock)]
     [InlineData(Provider.Ollama)]
+    [InlineData(Provider.GpuStack)]
     [InlineData(Provider.VLLM)]
+    [InlineData(Provider.Qwen)]
     public void GetDocumentationUrl_SupportedProviders_ReturnsUrl(Provider provider)
     {
         var url = provider.GetDocumentationUrl();
