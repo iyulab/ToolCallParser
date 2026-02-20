@@ -8,7 +8,6 @@
 
     <!-- Package metadata -->
     <PackageId>ToolCallParser</PackageId>
-    <Version>0.1.0</Version>
     <Authors>iyulab</Authors>
     <Company>iyulab</Company>
     <Description>Multi-provider tool call parsing and normalization for LLM applications</Description>
