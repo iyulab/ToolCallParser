@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using ToolCallParser.Parsers;
 
@@ -15,32 +16,33 @@ namespace ToolCallParser;
 /// </summary>
 public static class ToolCallParserFactory
 {
-    private static readonly Dictionary<Provider, IToolCallParser> Parsers = new()
-    {
-        // OpenAI-compatible providers
-        { Provider.OpenAI, new OpenAIToolCallParser() },
-        { Provider.AzureOpenAI, new OpenAIToolCallParser() },
-        { Provider.XAI, new OpenAIToolCallParser() },
-        { Provider.Mistral, new OpenAIToolCallParser() },
-        { Provider.DeepSeek, new OpenAIToolCallParser() },
-        { Provider.Ollama, new OpenAIToolCallParser() },
-        { Provider.GpuStack, new OpenAIToolCallParser() },
-        { Provider.VLLM, new OpenAIToolCallParser() },
-        { Provider.Qwen, new OpenAIToolCallParser() },
-        { Provider.LMStudio, new OpenAIToolCallParser() },
-        { Provider.LocalAI, new OpenAIToolCallParser() },
-        { Provider.TGI, new OpenAIToolCallParser() },
-        { Provider.OpenAICompatible, new OpenAIToolCallParser() },
+    private static readonly ConcurrentDictionary<Provider, IToolCallParser> Parsers = new(
+        new Dictionary<Provider, IToolCallParser>
+        {
+            // OpenAI-compatible providers
+            { Provider.OpenAI, new OpenAIToolCallParser() },
+            { Provider.AzureOpenAI, new OpenAIToolCallParser() },
+            { Provider.XAI, new OpenAIToolCallParser() },
+            { Provider.Mistral, new OpenAIToolCallParser() },
+            { Provider.DeepSeek, new OpenAIToolCallParser() },
+            { Provider.Ollama, new OpenAIToolCallParser() },
+            { Provider.GpuStack, new OpenAIToolCallParser() },
+            { Provider.VLLM, new OpenAIToolCallParser() },
+            { Provider.Qwen, new OpenAIToolCallParser() },
+            { Provider.LMStudio, new OpenAIToolCallParser() },
+            { Provider.LocalAI, new OpenAIToolCallParser() },
+            { Provider.TGI, new OpenAIToolCallParser() },
+            { Provider.OpenAICompatible, new OpenAIToolCallParser() },
 
-        // Anthropic-compatible providers
-        { Provider.Anthropic, new AnthropicToolCallParser() },
-        { Provider.AnthropicCompatible, new AnthropicToolCallParser() },
+            // Anthropic-compatible providers
+            { Provider.Anthropic, new AnthropicToolCallParser() },
+            { Provider.AnthropicCompatible, new AnthropicToolCallParser() },
 
-        // Unique format providers
-        { Provider.Google, new GoogleToolCallParser() },
-        { Provider.Cohere, new CohereToolCallParser() },
-        { Provider.Bedrock, new BedrockToolCallParser() }
-    };
+            // Unique format providers
+            { Provider.Google, new GoogleToolCallParser() },
+            { Provider.Cohere, new CohereToolCallParser() },
+            { Provider.Bedrock, new BedrockToolCallParser() }
+        });
 
     /// <summary>
     /// Gets a parser for the specified provider.
