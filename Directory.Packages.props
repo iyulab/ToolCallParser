@@ -1,6 +1,16 @@
 <Project>
-  <!-- Opt-out of parent's Central Package Management -->
   <PropertyGroup>
-    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Build Tooling -->
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.103" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Test -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.0" />
+  </ItemGroup>
 </Project>
