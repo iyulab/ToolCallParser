@@ -332,7 +332,7 @@ public static class ProviderExtensions
 
 ## Requirements
 
-- .NET 8.0, 9.0, or 10.0
+- .NET 10.0
 - System.Text.Json (included in .NET)
 
 ## Documentation
