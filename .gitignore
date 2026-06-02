@@ -36,3 +36,4 @@ logs/
 
 # Claude dev notes (local only)
 claudedocs/
+CLAUDE.md
