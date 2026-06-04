@@ -37,3 +37,6 @@ logs/
 # Claude dev notes (local only)
 claudedocs/
 CLAUDE.md
+
+# IDE language server cache
+*.lscache
