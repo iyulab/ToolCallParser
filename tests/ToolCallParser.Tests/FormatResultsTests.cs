@@ -55,17 +55,26 @@ public class FormatResultsTests
         Assert.Equal("success", toolResult.GetProperty("status").GetString());
     }
 
-    // Characterization test — documents CURRENT (defective) Cohere behavior:
-    // `call.parameters` is hard-coded empty because ToolCallResult carries no original
-    // arguments to echo. This is a KNOWN LIMITATION, not the desired output.
-    // See modules/ToolCallParser/claudedocs/issues/ISSUE-ToolCallParser-...-cohere-bug.md.
-    // Update this assertion when the bug is fixed.
+    // Cohere Chat API v2: tool results are messages with role "tool", tool_call_id
+    // (for matching, no parameter echo), and content. Fixes the prior v1/v2 mismatch
+    // where FormatResults emitted the legacy v1 `tool_results[].call.parameters={}`
+    // shape and discarded the tool_call_id the parser had extracted.
     [Fact]
-    public void Cohere_CurrentBehavior_ParametersAreEmpty()
+    public void Cohere_ProducesToolRoleMessage_WithToolCallId()
     {
-        var call = Format(Provider.Cohere, ToolCallResult.Success("id", "18C", "get_weather"))
-            .GetProperty("tool_results").EnumerateArray().Single().GetProperty("call");
-        Assert.Equal("get_weather", call.GetProperty("name").GetString());
-        Assert.Empty(call.GetProperty("parameters").EnumerateObject());
+        var msg = Format(Provider.Cohere, ToolCallResult.Success("call_1", "18C", "get_weather"))
+            .EnumerateArray().Single();
+        Assert.Equal("tool", msg.GetProperty("role").GetString());
+        Assert.Equal("call_1", msg.GetProperty("tool_call_id").GetString());
+        Assert.Equal("18C", msg.GetProperty("content").GetString());
+    }
+
+    [Fact]
+    public void Cohere_FailureResult_CarriesErrorTextInContent()
+    {
+        var msg = Format(Provider.Cohere, ToolCallResult.Failure("call_9", "boom", "get_weather"))
+            .EnumerateArray().Single();
+        Assert.Equal("call_9", msg.GetProperty("tool_call_id").GetString());
+        Assert.Contains("boom", msg.GetProperty("content").GetString());
     }
 }

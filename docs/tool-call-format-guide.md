@@ -20,12 +20,15 @@
 
 ### 오픈소스 / 셀프호스팅
 
-| 공급자 | 문서 URL |
-|--------|----------|
+셀프호스팅 런타임은 OpenAI tool-calling wire 포맷을 사용하므로 런타임별 enum 값 대신 단일 `Provider.OpenAICompatible`로 처리한다(감지 시에도 OpenAI 포맷으로 분류).
+
+| 런타임 (참고) | 문서 URL |
+|--------------|----------|
 | Ollama | https://ollama.com/blog/tool-support |
 | vLLM | https://docs.vllm.ai/en/latest/features/tool_calling/ |
 | Qwen | https://qwen.readthedocs.io/en/latest/framework/function_call.html |
 | GpuStack | https://docs.gpustack.ai/ |
+| LM Studio / LocalAI / TGI | (OpenAI 호환) |
 
 ---
 
@@ -33,7 +36,7 @@
 
 ### 1. OpenAI 형식 (가장 일반적)
 
-**사용 공급자**: OpenAI, Azure, Mistral, xAI, DeepSeek, Ollama, GpuStack, vLLM, Qwen, LMStudio, LocalAI, TGI
+**사용 공급자**: OpenAI, Azure, Mistral, xAI, DeepSeek, 그리고 모든 OpenAI 호환 엔드포인트(`OpenAICompatible` — Ollama/vLLM/LM Studio/LocalAI/TGI/GpuStack/Qwen 등)
 
 #### Tool 정의
 
@@ -349,19 +352,19 @@
 }
 ```
 
-#### Tool 결과 전송
+#### Tool 결과 전송 (V2 API)
+
+Cohere Chat API **v2**는 결과를 `messages` 배열에 `role: "tool"` 메시지로 넣는다. `tool_call_id`로 원래 호출과 매칭하며, 레거시 v1(`tool_results[].call.parameters`)과 달리 **원본 파라미터를 echo하지 않는다**. `ToolCallParser`의 `CohereToolCallParser.FormatResults`가 방출하는 형식:
 
 ```json
-{
-  "tool_results": [{
-    "call": {
-      "name": "get_weather",
-      "parameters": { "location": "Paris" }
-    },
-    "outputs": [{ "temperature": "18°C" }]
-  }]
-}
+[{
+  "role": "tool",
+  "tool_call_id": "call_xyz",
+  "content": "18°C"
+}]
 ```
+
+> 참고: 파서는 v2 tool call(`{ id, type, function }`)을 파싱하므로 결과도 v2 shape로 방출한다(parse↔format 정합). v1 `tool_results` 포맷은 레거시이며 Cohere 마이그레이션 가이드가 v2로 유도한다: https://docs.cohere.com/docs/migrating-v1-to-v2
 
 ---
 
@@ -469,7 +472,8 @@ public class NewProviderToolCallParserTests
 | 점검일 | 결과 | 비고 |
 |--------|------|------|
 | 2026-07-06 | 드리프트 없음 | 5개 canonical 포맷(OpenAI/Anthropic/Google/Bedrock/Cohere) 및 `ToolCallParserFactory` 감지 규칙이 현행 provider 포맷과 일치. TokenMeter 0.4.1에서 추가된 신규 모델(Claude Opus 4.8/Sonnet 5/Fable 5, GPT-5.5, Grok 4.3, Gemini 3.5)은 모두 각 family의 기존 wire 포맷 재사용 → 파서 변경 불필요. Anthropic 문서 host 이전(docs.anthropic.com→platform.claude.com) 반영. |
+| 2026-07-07 | **0.3.0 breaking** | 코드 품질 리뷰 후속(D1~D4). **D1**: Cohere `FormatResults`를 v1 `tool_results`에서 v2 `{role:"tool", tool_call_id, content}`로 전환(parse↔format 정합, tool_call_id 보존). **D3**: 포맷 감지를 `IToolCallParser.CanParse`(default interface method)로 단일 원천화 — `Factory.Is*Format` 5종 제거. **D2**: 파서 선택을 바꾸지 않던 self-host `Provider` 값 7종(Ollama/GpuStack/VLLM/Qwen/LMStudio/LocalAI/TGI) 제거 → `OpenAICompatible` 사용. **D4**: 미사용 `ToolCallParserFactory.RegisterParser` 제거(전역 mutation footgun), 내부 parser 테이블 `FrozenDictionary`화. |
 
 ---
 
-Last Updated: 2026-07-06
+Last Updated: 2026-07-07 (0.3.0)

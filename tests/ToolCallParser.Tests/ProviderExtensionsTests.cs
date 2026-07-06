@@ -10,13 +10,6 @@ public class ProviderExtensionsTests
     [InlineData(Provider.XAI, ProviderFormat.OpenAI)]
     [InlineData(Provider.Mistral, ProviderFormat.OpenAI)]
     [InlineData(Provider.DeepSeek, ProviderFormat.OpenAI)]
-    [InlineData(Provider.Ollama, ProviderFormat.OpenAI)]
-    [InlineData(Provider.GpuStack, ProviderFormat.OpenAI)]
-    [InlineData(Provider.VLLM, ProviderFormat.OpenAI)]
-    [InlineData(Provider.Qwen, ProviderFormat.OpenAI)]
-    [InlineData(Provider.LMStudio, ProviderFormat.OpenAI)]
-    [InlineData(Provider.LocalAI, ProviderFormat.OpenAI)]
-    [InlineData(Provider.TGI, ProviderFormat.OpenAI)]
     [InlineData(Provider.OpenAICompatible, ProviderFormat.OpenAI)]
     public void GetFormat_OpenAICompatibleProviders_ReturnsOpenAI(Provider provider, ProviderFormat expected)
     {
@@ -64,7 +57,6 @@ public class ProviderExtensionsTests
     [InlineData(Provider.AzureOpenAI)]
     [InlineData(Provider.Mistral)]
     [InlineData(Provider.DeepSeek)]
-    [InlineData(Provider.Ollama)]
     [InlineData(Provider.OpenAICompatible)]
     public void IsOpenAICompatible_OpenAIProviders_ReturnsTrue(Provider provider)
     {
@@ -117,10 +109,6 @@ public class ProviderExtensionsTests
     [InlineData(Provider.Cohere)]
     [InlineData(Provider.DeepSeek)]
     [InlineData(Provider.Bedrock)]
-    [InlineData(Provider.Ollama)]
-    [InlineData(Provider.GpuStack)]
-    [InlineData(Provider.VLLM)]
-    [InlineData(Provider.Qwen)]
     public void GetDocumentationUrl_SupportedProviders_ReturnsUrl(Provider provider)
     {
         var url = provider.GetDocumentationUrl();
@@ -133,9 +121,6 @@ public class ProviderExtensionsTests
     [InlineData(Provider.Auto)]
     [InlineData(Provider.OpenAICompatible)]
     [InlineData(Provider.AnthropicCompatible)]
-    [InlineData(Provider.LMStudio)]
-    [InlineData(Provider.LocalAI)]
-    [InlineData(Provider.TGI)]
     public void GetDocumentationUrl_UnsupportedProviders_ReturnsNull(Provider provider)
     {
         Assert.Null(provider.GetDocumentationUrl());

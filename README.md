@@ -10,10 +10,10 @@ Multi-provider tool call parsing and normalization for LLM applications.
 
 - **Unified Interface** - Parse tool calls from any LLM provider into a common format
 - **Auto-Detection** - Automatically detect the provider from response format
-- **20+ Providers** - OpenAI, Anthropic, Google, xAI, Mistral, Cohere, DeepSeek, AWS Bedrock, and more
-- **OpenSource Support** - Ollama, vLLM, GpuStack, Qwen, LMStudio, LocalAI, TGI
+- **5 wire formats** - OpenAI, Anthropic, Google, Cohere, AWS Bedrock — covering OpenAI, Azure, xAI, Mistral, DeepSeek, Claude, Gemini, Command R, and Bedrock
+- **Self-hosted support** - Any OpenAI-compatible endpoint (Ollama, vLLM, LM Studio, LocalAI, TGI, GpuStack, Qwen, …) via `Provider.OpenAICompatible`
 - **Result Formatting** - Format tool results back to provider-specific format
-- **Extensible** - Register custom parsers for new providers
+- **Extensible** - Implement `IToolCallParser` (with `CanParse` for auto-detection) for new formats
 
 ## Installation
 
@@ -59,7 +59,7 @@ foreach (var call in toolCalls)
 ### Provider-Specific Parsing
 
 ```csharp
-// OpenAI-compatible (Mistral, xAI, DeepSeek, Ollama, etc.)
+// OpenAI-compatible (Mistral, xAI, DeepSeek, or any OpenAI-compatible endpoint)
 var openAiParser = ToolCallParserFactory.GetParser(Provider.OpenAI);
 
 // Anthropic Claude
@@ -93,21 +93,22 @@ var cohereParser = ToolCallParserFactory.GetParser(Provider.Cohere);
 
 ### Open Source / Self-Hosted
 
-| Provider | Format | Documentation |
-|----------|--------|---------------|
-| Ollama | OpenAI-compatible | [docs](https://ollama.com/blog/tool-support) |
-| GpuStack | OpenAI-compatible | [docs](https://docs.gpustack.ai/) |
-| vLLM | OpenAI-compatible | [docs](https://docs.vllm.ai/en/latest/features/tool_calling/) |
-| Qwen | OpenAI-compatible | [docs](https://qwen.readthedocs.io/en/latest/framework/function_call.html) |
-| LMStudio | OpenAI-compatible | - |
-| LocalAI | OpenAI-compatible | - |
-| TGI (HuggingFace) | OpenAI-compatible | - |
+Self-hosted runtimes speak the OpenAI tool-calling wire format, so they are handled by a
+single `Provider.OpenAICompatible` value rather than a per-runtime enum member:
+
+```csharp
+// Ollama, vLLM, LM Studio, LocalAI, TGI, GpuStack, Qwen, and any other OpenAI-compatible server
+var parser = ToolCallParserFactory.GetParser(Provider.OpenAICompatible);
+```
+
+Auto-detection (`ToolCallParserFactory.Parse`) also classifies these responses as the OpenAI
+format, so an explicit provider is only needed when you skip detection.
 
 ### Format Categories
 
 ```csharp
 // Check format compatibility
-var provider = Provider.Ollama;
+var provider = Provider.OpenAICompatible;
 
 if (provider.IsOpenAICompatible())
 {
@@ -266,10 +267,12 @@ switch (provider)
 }
 ```
 
-## Custom Parser Registration
+## Custom Parsers
+
+Implement `IToolCallParser` and use it directly. The built-in `ToolCallParserFactory` exposes a
+fixed set of parsers and is not a mutable registry — a custom parser is just a class you own:
 
 ```csharp
-// Create a custom parser
 public class CustomProviderParser : IToolCallParser
 {
     public Provider Provider => Provider.OpenAICompatible;
@@ -277,11 +280,14 @@ public class CustomProviderParser : IToolCallParser
     public IReadOnlyList<ToolCall> Parse(JsonElement element) { /* ... */ }
     public bool HasToolCalls(string response) { /* ... */ }
     public bool HasToolCalls(JsonElement element) { /* ... */ }
+    // Optional: override CanParse for auto-detection; defaults to HasToolCalls.
+    public bool CanParse(JsonElement element) { /* ... */ }
     public string FormatResults(IEnumerable<ToolCallResult> results) { /* ... */ }
 }
 
-// Register it
-ToolCallParserFactory.RegisterParser(Provider.OpenAICompatible, new CustomProviderParser());
+// Use it directly
+var parser = new CustomProviderParser();
+var toolCalls = parser.Parse(response);
 ```
 
 ## API Reference

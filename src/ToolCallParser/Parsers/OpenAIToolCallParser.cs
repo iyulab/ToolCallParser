@@ -17,6 +17,39 @@ public sealed class OpenAIToolCallParser : IToolCallParser
     public Provider Provider => Provider.OpenAI;
 
     /// <inheritdoc />
+    public bool CanParse(JsonElement element)
+    {
+        // choices array (OpenAI response format)
+        if (element.TryGetProperty("choices", out _))
+        {
+            return true;
+        }
+
+        // tool_calls directly
+        if (element.TryGetProperty("tool_calls", out _))
+        {
+            return true;
+        }
+
+        // function_call (legacy format)
+        if (element.TryGetProperty("function_call", out _))
+        {
+            return true;
+        }
+
+        // message object with tool_calls / function_call
+        if (element.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.Object)
+        {
+            if (message.TryGetProperty("tool_calls", out _) || message.TryGetProperty("function_call", out _))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc />
     public IReadOnlyList<ToolCall> Parse(string response)
     {
         if (string.IsNullOrWhiteSpace(response))

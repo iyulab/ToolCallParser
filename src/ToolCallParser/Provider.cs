@@ -69,54 +69,13 @@ public enum Provider
     Bedrock,
 
     // ========================================
-    // Open Source / Self-Hosted
-    // ========================================
-
-    /// <summary>
-    /// Ollama local models (OpenAI-compatible).
-    /// https://ollama.com/blog/tool-support
-    /// </summary>
-    Ollama,
-
-    /// <summary>
-    /// GpuStack local inference (OpenAI-compatible).
-    /// https://docs.gpustack.ai/
-    /// </summary>
-    GpuStack,
-
-    /// <summary>
-    /// vLLM serving (OpenAI-compatible with Hermes parser).
-    /// https://docs.vllm.ai/en/latest/features/tool_calling/
-    /// </summary>
-    VLLM,
-
-    /// <summary>
-    /// Qwen models (OpenAI-compatible, Hermes-style).
-    /// https://qwen.readthedocs.io/en/latest/framework/function_call.html
-    /// </summary>
-    Qwen,
-
-    /// <summary>
-    /// LMStudio local models (OpenAI-compatible).
-    /// </summary>
-    LMStudio,
-
-    /// <summary>
-    /// LocalAI (OpenAI-compatible).
-    /// </summary>
-    LocalAI,
-
-    /// <summary>
-    /// Text Generation Inference by Hugging Face (OpenAI-compatible).
-    /// </summary>
-    TGI,
-
-    // ========================================
     // Generic Compatibility Modes
     // ========================================
 
     /// <summary>
-    /// Generic OpenAI-compatible API (default for unknown providers).
+    /// Generic OpenAI-compatible API. Use this for any endpoint that speaks the OpenAI
+    /// tool-calling wire format but is not one of the named providers above — including
+    /// self-hosted runtimes such as Ollama, vLLM, LM Studio, LocalAI, TGI, GpuStack, and Qwen.
     /// </summary>
     OpenAICompatible,
 
@@ -141,13 +100,6 @@ public static class ProviderExtensions
         Provider.XAI or
         Provider.Mistral or
         Provider.DeepSeek or
-        Provider.Ollama or
-        Provider.GpuStack or
-        Provider.VLLM or
-        Provider.Qwen or
-        Provider.LMStudio or
-        Provider.LocalAI or
-        Provider.TGI or
         Provider.OpenAICompatible => ProviderFormat.OpenAI,
 
         Provider.Anthropic or
@@ -186,10 +138,6 @@ public static class ProviderExtensions
         Provider.Cohere => "https://docs.cohere.com/docs/tool-use-overview",
         Provider.DeepSeek => "https://api-docs.deepseek.com/guides/function_calling",
         Provider.Bedrock => "https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html",
-        Provider.Ollama => "https://ollama.com/blog/tool-support",
-        Provider.GpuStack => "https://docs.gpustack.ai/",
-        Provider.VLLM => "https://docs.vllm.ai/en/latest/features/tool_calling/",
-        Provider.Qwen => "https://qwen.readthedocs.io/en/latest/framework/function_call.html",
         _ => null
     };
 }

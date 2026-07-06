@@ -18,6 +18,34 @@ public sealed class AnthropicToolCallParser : IToolCallParser
     public Provider Provider => Provider.Anthropic;
 
     /// <inheritdoc />
+    public bool CanParse(JsonElement element)
+    {
+        // stop_reason (Anthropic-specific field name)
+        if (element.TryGetProperty("stop_reason", out _))
+        {
+            return true;
+        }
+
+        // content array with tool_use / tool_result blocks
+        if (element.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var block in content.EnumerateArray())
+            {
+                if (block.TryGetProperty("type", out var typeElement))
+                {
+                    var type = typeElement.GetString();
+                    if (type == "tool_use" || type == "tool_result")
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc />
     public IReadOnlyList<ToolCall> Parse(string response)
     {
         if (string.IsNullOrWhiteSpace(response))

@@ -369,7 +369,7 @@ public class CohereToolCallParserTests
     #region FormatResults
 
     [Fact]
-    public void FormatResults_CreatesToolResultsFormat()
+    public void FormatResults_CreatesV2ToolRoleMessages()
     {
         var results = new[]
         {
@@ -378,11 +378,19 @@ public class CohereToolCallParserTests
         };
 
         var formatted = _parser.FormatResults(results);
+        using var doc = System.Text.Json.JsonDocument.Parse(formatted);
+        var messages = doc.RootElement.EnumerateArray().ToArray();
 
-        Assert.Contains("tool_results", formatted);
-        Assert.Contains("get_weather", formatted);
-        Assert.Contains("weather data", formatted);
-        Assert.Contains("outputs", formatted);
+        // Cohere v2: [{ role:"tool", tool_call_id, content }] — tool_call_id preserved,
+        // no v1 tool_results/call.parameters/outputs shape.
+        Assert.Equal(2, messages.Length);
+        Assert.Equal("tool", messages[0].GetProperty("role").GetString());
+        Assert.Equal("call_1", messages[0].GetProperty("tool_call_id").GetString());
+        Assert.Equal("weather data", messages[0].GetProperty("content").GetString());
+        Assert.Equal("call_2", messages[1].GetProperty("tool_call_id").GetString());
+        Assert.Contains("error", messages[1].GetProperty("content").GetString());
+        Assert.DoesNotContain("tool_results", formatted);
+        Assert.DoesNotContain("outputs", formatted);
     }
 
     #endregion

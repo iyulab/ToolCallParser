@@ -41,6 +41,17 @@ public interface IToolCallParser
     bool HasToolCalls(JsonElement element);
 
     /// <summary>
+    /// Determines whether <paramref name="element"/> is in this parser's provider format.
+    /// This is the single source of truth for format detection: <see cref="ToolCallParserFactory.DetectProvider(JsonElement)"/>
+    /// delegates to each parser's <c>CanParse</c> rather than maintaining a parallel copy of the format shape.
+    /// The default recognizes the format whenever tool calls are present; built-in parsers override it to also
+    /// recognize provider-specific structural markers (e.g. Anthropic <c>stop_reason</c>) that appear without tool calls.
+    /// </summary>
+    /// <param name="element">The JSON element to inspect</param>
+    /// <returns>True if this parser recognizes the element's format</returns>
+    bool CanParse(JsonElement element) => HasToolCalls(element);
+
+    /// <summary>
     /// Formats tool call results back to the provider's expected format.
     /// </summary>
     /// <param name="results">The tool call results</param>

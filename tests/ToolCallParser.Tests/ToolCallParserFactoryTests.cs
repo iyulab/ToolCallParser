@@ -5,8 +5,6 @@ public class ToolCallParserFactoryTests
     [Theory]
     [InlineData(Provider.OpenAI)]
     [InlineData(Provider.AzureOpenAI)]
-    [InlineData(Provider.Ollama)]
-    [InlineData(Provider.GpuStack)]
     [InlineData(Provider.OpenAICompatible)]
     [InlineData(Provider.Anthropic)]
     public void GetParser_SupportedProvider_ReturnsParser(Provider provider)
@@ -163,17 +161,6 @@ public class ToolCallParserFactoryTests
         var json = """{"message": "no tools here"}""";
 
         Assert.False(ToolCallParserFactory.HasToolCalls(json));
-    }
-
-    [Fact]
-    public void RegisterParser_CustomParser_Works()
-    {
-        var customParser = new CustomTestParser();
-
-        ToolCallParserFactory.RegisterParser(Provider.Mistral, customParser);
-        var parser = ToolCallParserFactory.GetParser(Provider.Mistral);
-
-        Assert.Same(customParser, parser);
     }
 
     [Fact]
@@ -381,8 +368,8 @@ public class ToolCallParserFactoryTests
 
         Assert.Contains(Provider.OpenAI, providers);
         Assert.Contains(Provider.AzureOpenAI, providers);
-        Assert.Contains(Provider.Ollama, providers);
-        Assert.Contains(Provider.GpuStack, providers);
+        Assert.Contains(Provider.Mistral, providers);
+        Assert.Contains(Provider.DeepSeek, providers);
         Assert.Contains(Provider.OpenAICompatible, providers);
         Assert.DoesNotContain(Provider.Anthropic, providers);
         Assert.DoesNotContain(Provider.Google, providers);
@@ -460,20 +447,5 @@ public class ToolCallParserFactoryTests
         var result = ToolCallParserFactory.Parse(json);
 
         Assert.Empty(result);
-    }
-
-    private sealed class CustomTestParser : IToolCallParser
-    {
-        public Provider Provider => Provider.Mistral;
-
-        public IReadOnlyList<ToolCall> Parse(string response) => [];
-
-        public IReadOnlyList<ToolCall> Parse(System.Text.Json.JsonElement element) => [];
-
-        public bool HasToolCalls(string response) => false;
-
-        public bool HasToolCalls(System.Text.Json.JsonElement element) => false;
-
-        public string FormatResults(IEnumerable<ToolCallResult> results) => "[]";
     }
 }

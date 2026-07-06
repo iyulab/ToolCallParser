@@ -20,6 +20,37 @@ public sealed class CohereToolCallParser : IToolCallParser
     public Provider Provider => Provider.Cohere;
 
     /// <inheritdoc />
+    public bool CanParse(JsonElement element)
+    {
+        // finish_reason == "TOOL_CALL"
+        if (element.TryGetProperty("finish_reason", out var finishReason) &&
+            finishReason.GetString() == "TOOL_CALL")
+        {
+            return true;
+        }
+
+        // tool_plan (Cohere-specific)
+        if (element.TryGetProperty("tool_plan", out _))
+        {
+            return true;
+        }
+
+        // actions array (multi-step) with tool_name
+        if (element.TryGetProperty("actions", out var actions) && actions.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var action in actions.EnumerateArray())
+            {
+                if (action.TryGetProperty("tool_name", out _))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc />
     public IReadOnlyList<ToolCall> Parse(string response)
     {
         if (string.IsNullOrWhiteSpace(response))
@@ -130,21 +161,20 @@ public sealed class CohereToolCallParser : IToolCallParser
     /// <inheritdoc />
     public string FormatResults(IEnumerable<ToolCallResult> results)
     {
-        // Cohere expects tool_results format with call info and outputs list
-        var toolResults = results.Select(r => new
+        // Cohere Chat API v2 tool result: a message with role "tool", the tool_call_id
+        // that matches the originating call, and the result content. v2 matches results
+        // to calls by tool_call_id and does NOT echo the original call parameters (unlike
+        // the legacy v1 `tool_results[].call.parameters` shape). This parser parses v2
+        // tool calls (see ParseToolCall), so it formats results in the matching v2 shape.
+        // https://docs.cohere.com/docs/migrating-v1-to-v2
+        var messages = results.Select(r => new
         {
-            call = new
-            {
-                name = r.ToolName ?? "",
-                parameters = new { }
-            },
-            outputs = new[]
-            {
-                new { result = r.Content }
-            }
+            role = "tool",
+            tool_call_id = r.ToolCallId,
+            content = r.Content
         });
 
-        return JsonSerializer.Serialize(new { tool_results = toolResults }, JsonOptions);
+        return JsonSerializer.Serialize(messages, JsonOptions);
     }
 
     private static ToolCall? ParseToolCall(JsonElement element)

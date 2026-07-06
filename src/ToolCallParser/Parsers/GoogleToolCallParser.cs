@@ -19,6 +19,50 @@ public sealed class GoogleToolCallParser : IToolCallParser
     public Provider Provider => Provider.Google;
 
     /// <inheritdoc />
+    public bool CanParse(JsonElement element)
+    {
+        // candidates array (Gemini response format)
+        if (element.TryGetProperty("candidates", out var candidates) && candidates.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var candidate in candidates.EnumerateArray())
+            {
+                if (candidate.TryGetProperty("content", out var content) &&
+                    content.TryGetProperty("parts", out var parts) &&
+                    parts.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var part in parts.EnumerateArray())
+                    {
+                        if (part.TryGetProperty("functionCall", out _))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // functionCall directly
+        if (element.TryGetProperty("functionCall", out _))
+        {
+            return true;
+        }
+
+        // parts with functionCall
+        if (element.TryGetProperty("parts", out var directParts) && directParts.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var part in directParts.EnumerateArray())
+            {
+                if (part.TryGetProperty("functionCall", out _))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc />
     public IReadOnlyList<ToolCall> Parse(string response)
     {
         if (string.IsNullOrWhiteSpace(response))

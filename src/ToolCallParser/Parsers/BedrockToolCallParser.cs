@@ -19,6 +19,34 @@ public sealed class BedrockToolCallParser : IToolCallParser
     public Provider Provider => Provider.Bedrock;
 
     /// <inheritdoc />
+    public bool CanParse(JsonElement element)
+    {
+        // stopReason == "tool_use" (Bedrock uses camelCase)
+        if (element.TryGetProperty("stopReason", out var stopReason) &&
+            stopReason.GetString() == "tool_use")
+        {
+            return true;
+        }
+
+        // toolUse blocks under output.message.content
+        if (element.TryGetProperty("output", out var output) &&
+            output.TryGetProperty("message", out var message) &&
+            message.TryGetProperty("content", out var content) &&
+            content.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var block in content.EnumerateArray())
+            {
+                if (block.TryGetProperty("toolUse", out _))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc />
     public IReadOnlyList<ToolCall> Parse(string response)
     {
         if (string.IsNullOrWhiteSpace(response))
