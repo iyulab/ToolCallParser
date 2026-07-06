@@ -295,6 +295,68 @@ public class ToolCallParserFactoryTests
     }
 
     [Fact]
+    public void DetectProvider_CohereV1BareToolCalls_ReturnsCohere()
+    {
+        // Legacy Cohere V1: top-level tool_calls with bare {name, parameters}, no finish_reason/
+        // tool_plan. Must route to Cohere (not OpenAI, whose parser cannot read this shape).
+        var json = """
+        {
+            "finish_reason": "COMPLETE",
+            "tool_calls": [{
+                "name": "get_weather",
+                "parameters": {"location": "Toronto"}
+            }]
+        }
+        """;
+
+        var provider = ToolCallParserFactory.DetectProvider(json);
+
+        Assert.Equal(Provider.Cohere, provider);
+    }
+
+    [Fact]
+    public void Parse_CohereV1BareToolCalls_ExtractsCall()
+    {
+        // Regression: the finish_reason-less V1 shape must be auto-detected AND parsed, not
+        // silently dropped by misrouting to the OpenAI parser.
+        var json = """
+        {
+            "finish_reason": "COMPLETE",
+            "tool_calls": [{
+                "name": "get_weather",
+                "parameters": {"location": "Toronto"}
+            }]
+        }
+        """;
+
+        var result = ToolCallParserFactory.Parse(json);
+
+        Assert.Single(result);
+        Assert.Equal("get_weather", result[0].Name);
+        Assert.Contains("Toronto", result[0].Arguments);
+    }
+
+    [Fact]
+    public void DetectProvider_OpenAIFunctionWrappedToolCalls_NotStolenByCohere()
+    {
+        // Guard: OpenAI/V2 tool_calls wrap the call in "function"; the new Cohere V1 bare-name
+        // detection must NOT claim these. Cohere is probed before OpenAI, so this proves no theft.
+        var json = """
+        {
+            "tool_calls": [{
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "get_weather", "arguments": "{\"location\":\"Toronto\"}"}
+            }]
+        }
+        """;
+
+        var provider = ToolCallParserFactory.DetectProvider(json);
+
+        Assert.Equal(Provider.OpenAI, provider);
+    }
+
+    [Fact]
     public void DetectProvider_AnthropicContentToolUse_ReturnsAnthropic()
     {
         // Anthropic format detected by content array with tool_use type (without stop_reason)

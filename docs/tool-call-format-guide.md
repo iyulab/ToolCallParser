@@ -473,7 +473,8 @@ public class NewProviderToolCallParserTests
 |--------|------|------|
 | 2026-07-06 | 드리프트 없음 | 5개 canonical 포맷(OpenAI/Anthropic/Google/Bedrock/Cohere) 및 `ToolCallParserFactory` 감지 규칙이 현행 provider 포맷과 일치. TokenMeter 0.4.1에서 추가된 신규 모델(Claude Opus 4.8/Sonnet 5/Fable 5, GPT-5.5, Grok 4.3, Gemini 3.5)은 모두 각 family의 기존 wire 포맷 재사용 → 파서 변경 불필요. Anthropic 문서 host 이전(docs.anthropic.com→platform.claude.com) 반영. |
 | 2026-07-07 | **0.3.0 breaking** | 코드 품질 리뷰 후속(D1~D4). **D1**: Cohere `FormatResults`를 v1 `tool_results`에서 v2 `{role:"tool", tool_call_id, content}`로 전환(parse↔format 정합, tool_call_id 보존). **D3**: 포맷 감지를 `IToolCallParser.CanParse`(default interface method)로 단일 원천화 — `Factory.Is*Format` 5종 제거. **D2**: 파서 선택을 바꾸지 않던 self-host `Provider` 값 7종(Ollama/GpuStack/VLLM/Qwen/LMStudio/LocalAI/TGI) 제거 → `OpenAICompatible` 사용. **D4**: 미사용 `ToolCallParserFactory.RegisterParser` 제거(전역 mutation footgun), 내부 parser 테이블 `FrozenDictionary`화. |
+| 2026-07-07 | **0.3.1 fix (additive)** | 항목 5(silent-drop 갭). `CohereToolCallParser.CanParse`가 `finish_reason`/`tool_plan`/`actions` 없는 **레거시 Cohere V1** bare `tool_calls:[{name, parameters}]` shape를 감지하도록 보강. 이전엔 이 응답이 OpenAI 파서로 오라우팅되어 `{name,parameters}`를 못 읽고 도구 호출이 조용히 사라졌음(파서 `Parse`는 이미 V1 처리 가능했으나 자동감지가 못 미침). 판별자=bare `name` + `function` 미존재(OpenAI/V2는 `function` 래핑이라 충돌 없음). 회귀 테스트 3종 추가. |
 
 ---
 
-Last Updated: 2026-07-07 (0.3.0)
+Last Updated: 2026-07-07 (0.3.1)

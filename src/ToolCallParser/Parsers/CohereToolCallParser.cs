@@ -47,6 +47,24 @@ public sealed class CohereToolCallParser : IToolCallParser
             }
         }
 
+        // Cohere V1: top-level tool_calls whose elements are the bare { name, parameters }
+        // shape (no "function" wrapper). OpenAI and Cohere V2 wrap each call in "function",
+        // so requiring a bare "name" without "function" distinguishes legacy Cohere V1 without
+        // stealing OpenAI responses. Without this, a finish_reason-less V1 response falls through
+        // to the OpenAI parser, which cannot read { name, parameters } and silently drops the call.
+        if (element.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var toolCall in toolCalls.EnumerateArray())
+            {
+                if (toolCall.ValueKind == JsonValueKind.Object &&
+                    toolCall.TryGetProperty("name", out _) &&
+                    !toolCall.TryGetProperty("function", out _))
+                {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
