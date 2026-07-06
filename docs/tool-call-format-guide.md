@@ -166,7 +166,8 @@
     {
       "type": "tool_result",
       "tool_use_id": "toolu_01XYZ",
-      "content": "Temperature: 22°C, Sunny"
+      "content": "Temperature: 22°C, Sunny",
+      "is_error": false
     }
   ]
 }
