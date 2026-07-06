@@ -10,7 +10,7 @@
 |--------|----------|
 | OpenAI | https://platform.openai.com/docs/guides/function-calling |
 | Azure OpenAI | https://learn.microsoft.com/azure/ai-services/openai/how-to/function-calling |
-| Anthropic | https://docs.anthropic.com/en/docs/build-with-claude/tool-use |
+| Anthropic | https://platform.claude.com/docs/en/docs/build-with-claude/tool-use |
 | Google Gemini | https://ai.google.dev/gemini-api/docs/function-calling |
 | xAI (Grok) | https://docs.x.ai/docs/guides/function-calling |
 | Mistral | https://docs.mistral.ai/capabilities/function_calling |
@@ -463,4 +463,12 @@ public class NewProviderToolCallParserTests
 
 ---
 
-Last Updated: 2026-01-28
+## 드리프트 점검 로그
+
+| 점검일 | 결과 | 비고 |
+|--------|------|------|
+| 2026-07-06 | 드리프트 없음 | 5개 canonical 포맷(OpenAI/Anthropic/Google/Bedrock/Cohere) 및 `ToolCallParserFactory` 감지 규칙이 현행 provider 포맷과 일치. TokenMeter 0.4.1에서 추가된 신규 모델(Claude Opus 4.8/Sonnet 5/Fable 5, GPT-5.5, Grok 4.3, Gemini 3.5)은 모두 각 family의 기존 wire 포맷 재사용 → 파서 변경 불필요. Anthropic 문서 host 이전(docs.anthropic.com→platform.claude.com) 반영. |
+
+---
+
+Last Updated: 2026-07-06
