@@ -81,7 +81,7 @@ var cohereParser = ToolCallParserFactory.GetParser(Provider.Cohere);
 
 | Provider | Format | Documentation |
 |----------|--------|---------------|
-| OpenAI | `tool_calls` | [docs](https://platform.openai.com/docs/guides/function-calling) |
+| OpenAI | `tool_calls` (Chat Completions) + `function_call` output items (Responses API) | [docs](https://developers.openai.com/api/docs/guides/function-calling) |
 | Azure OpenAI | OpenAI-compatible | [docs](https://learn.microsoft.com/azure/ai-services/openai/) |
 | Anthropic (Claude) | `tool_use` blocks | [docs](https://docs.anthropic.com/en/docs/build-with-claude/tool-use) |
 | Google Gemini | `functionCall` | [docs](https://ai.google.dev/gemini-api/docs/function-calling) |

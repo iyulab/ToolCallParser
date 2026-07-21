@@ -46,6 +46,12 @@ public sealed class OpenAIToolCallParser : IToolCallParser
             }
         }
 
+        // Responses API: output[] items (or a bare item) with type == "function_call"
+        if (HasResponsesFunctionCallItems(element))
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -89,6 +95,9 @@ public sealed class OpenAIToolCallParser : IToolCallParser
             }
         }
 
+        // Responses API: output[] items with type == "function_call"
+        ParseResponsesFunctionCallItems(element, results);
+
         return results;
     }
 
@@ -108,7 +117,8 @@ public sealed class OpenAIToolCallParser : IToolCallParser
     public bool HasToolCalls(JsonElement element)
     {
         return TryGetToolCallsElement(element, out var toolCalls) && toolCalls.GetArrayLength() > 0
-            || TryGetFunctionCallElement(element, out _);
+            || TryGetFunctionCallElement(element, out _)
+            || HasResponsesFunctionCallItems(element);
     }
 
     /// <inheritdoc />
@@ -221,6 +231,112 @@ public sealed class OpenAIToolCallParser : IToolCallParser
         return new ToolCall
         {
             Id = idElement.GetString() ?? string.Empty,
+            Name = nameElement.GetString() ?? string.Empty,
+            Arguments = arguments
+        };
+    }
+
+    /// <summary>
+    /// Detects Responses API function-call items: either a top-level <c>output</c> array
+    /// containing <c>{"type":"function_call", ...}</c> items, or a bare such item. Models
+    /// exclusively served through the Responses API (e.g. gpt-5.4-pro) emit this shape
+    /// instead of Chat Completions <c>tool_calls</c>.
+    /// </summary>
+    private static bool HasResponsesFunctionCallItems(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (IsResponsesFunctionCallItem(element))
+        {
+            return true;
+        }
+
+        if (element.TryGetProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in output.EnumerateArray())
+            {
+                if (IsResponsesFunctionCallItem(item))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsResponsesFunctionCallItem(JsonElement element)
+        => element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("type", out var type)
+            && type.ValueKind == JsonValueKind.String
+            && type.GetString() == "function_call"
+            && element.TryGetProperty("name", out _);
+
+    private static void ParseResponsesFunctionCallItems(JsonElement element, List<ToolCall> results)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        if (IsResponsesFunctionCallItem(element))
+        {
+            var parsed = ParseResponsesFunctionCallItem(element);
+            if (parsed != null)
+            {
+                results.Add(parsed);
+            }
+            return;
+        }
+
+        if (element.TryGetProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in output.EnumerateArray())
+            {
+                if (!IsResponsesFunctionCallItem(item))
+                {
+                    continue;
+                }
+
+                var parsed = ParseResponsesFunctionCallItem(item);
+                if (parsed != null)
+                {
+                    results.Add(parsed);
+                }
+            }
+        }
+    }
+
+    private static ToolCall? ParseResponsesFunctionCallItem(JsonElement element)
+    {
+        if (!element.TryGetProperty("name", out var nameElement))
+        {
+            return null;
+        }
+
+        // call_id is the reference id used to submit results; fall back to the item id.
+        var id = element.TryGetProperty("call_id", out var callId) && callId.ValueKind == JsonValueKind.String
+            ? callId.GetString()
+            : element.TryGetProperty("id", out var itemId) && itemId.ValueKind == JsonValueKind.String
+                ? itemId.GetString()
+                : null;
+
+        var arguments = "{}";
+        if (element.TryGetProperty("arguments", out var argsElement))
+        {
+            // Arguments are a JSON-encoded string in the Responses API; tolerate an
+            // already-parsed object as well (seen in adjacent item-style formats).
+            arguments = argsElement.ValueKind == JsonValueKind.String
+                ? argsElement.GetString() ?? "{}"
+                : argsElement.GetRawText();
+        }
+
+        return new ToolCall
+        {
+            Id = id ?? $"call_{Guid.NewGuid():N}"[..29],
             Name = nameElement.GetString() ?? string.Empty,
             Arguments = arguments
         };
