@@ -247,6 +247,42 @@ Responses-전용 모델(예: gpt-5.4-pro)은 이 형식만 반환한다. (0.4.0�
 }
 ```
 
+#### Interactions API 형식 (function_call step)
+
+Interactions API 는 2026-06 부로 GA 이며 신규 프로젝트 권장 표면이다. generateContent 는 계속
+지원되지만 legacy 로 분류되고, 신규 도구·에이전트 기능은 Interactions 쪽에서 출시된다.
+
+응답은 `candidates[].content.parts[]` 가 아니라 **`steps[]`** 배열이며, 사고·도구호출·도구결과·
+최종출력이 시간순으로 섞여 담긴다. 도구 호출 step 은 `type: "function_call"` 로 판별한다.
+
+```json
+{
+  "name": "interactions/abc123",
+  "steps": [
+    { "type": "thought", "text": "I should look up the weather." },
+    {
+      "name": "get_weather",
+      "type": "function_call",
+      "arguments": { "location": "Boston, MA" },
+      "id": "gth23981"
+    },
+    { "type": "model_output", "content": [{ "text": "..." }] }
+  ]
+}
+```
+
+generateContent 형식과 다른 점 셋:
+
+| | generateContent | Interactions |
+|---|---|---|
+| 컨테이너 | `candidates[].content.parts[].functionCall` | `steps[]` (`type == "function_call"`) |
+| 인자 필드 | `args` | `arguments` |
+| 호출 id | **없음** (파서가 생성) | **`id` 제공** — 결과 제출 시 참조하므로 보존한다 |
+
+> **`steps` 봉투만 인식한다.** step 하나를 벗겨 단독으로 넘기면 OpenAI Responses 의
+> `function_call` 아이템과 형태가 같아(둘 다 `type`+`name` 객체) 구분이 불가능하다. 단독 step 까지
+> 여기서 주장하면 커버리지가 늘어나는 게 아니라 감지가 모호해진다.
+
 #### Tool 결과 전송
 
 ```json
@@ -499,6 +535,8 @@ public class NewProviderToolCallParserTests
 | 2026-07-21 | **0.4.0 additive** | 격주 점검. **OpenAI Responses API `function_call` output item 파싱 추가** — Responses-전용 모델(gpt-5.4-pro 등) 등장으로 커버리지 갭이 실사용 갭이 됨. `call_id`→Id 매핑, object-형 arguments 관용 처리, 회귀 7종. 나머지 4 provider 무드리프트(Anthropic tool_use·Cohere v2·Gemini generateContent functionCall·Bedrock Converse toolUse 불변). **관찰(비조치)**: ① Google **Interactions API**(신규)가 `type:'function_call'` step + object arguments 사용 — generateContent와 병존, 파서 어트리뷰션 검토 필요 시 후속. ② Bedrock이 Responses/Chat Completions 모드 추가 — OpenAI-호환 표면이라 기존 파서로 커버 추정, 실측은 후속. ③ OpenAI custom tools(`custom_tool_call`, plain-text arguments) 미지원 유지 — 수요 신호 대기. 부수: repo nuget.config 신설(NU1507 — 머신 레벨 소스 누수 차단, iron-prow 선례). |
 | 2026-07-07 | **0.3.1 fix (additive)** | 항목 5(silent-drop 갭). `CohereToolCallParser.CanParse`가 `finish_reason`/`tool_plan`/`actions` 없는 **레거시 Cohere V1** bare `tool_calls:[{name, parameters}]` shape를 감지하도록 보강. 이전엔 이 응답이 OpenAI 파서로 오라우팅되어 `{name,parameters}`를 못 읽고 도구 호출이 조용히 사라졌음(파서 `Parse`는 이미 V1 처리 가능했으나 자동감지가 못 미침). 판별자=bare `name` + `function` 미존재(OpenAI/V2는 `function` 래핑이라 충돌 없음). 회귀 테스트 3종 추가. |
 
+| 2026-08-02 | **0.5.0 additive** | 격주 점검. 직전 회차가 **관찰(비조치)**로 넘긴 ①번을 실측했더니 조용한 소실이었다. **Google Interactions API `steps[]` 파싱 추가** — Interactions 는 2026-06 GA·신규 프로젝트 권장이고 신규 도구/에이전트 기능이 여기서 출시되는 반면 generateContent 는 legacy 로 분류됐다. 즉 Google 커버리지가 레거시 표면만 덮고 있었다. 실측: `{"steps":[{"type":"function_call",...}]}` 에 대해 Google `CanParse` 는 `functionCall` 만 보므로 false, OpenAI 쪽 Responses 감지는 컨테이너가 `output[]` 이라 false → **`DetectProvider` = `Auto`, `Parse` = 빈 배열, 예외 없음**. 0.3.1 Cohere V1 과 동일한 silent-drop 클래스. 처방은 `steps` 봉투 인식 + `arguments`(객체) + **`id` 보존**(generateContent 와 달리 Interactions 는 결과 제출용 id 를 준다 — 생성 Guid 로 덮으면 왕복이 깨진다). 회귀 8종, 216 GREEN. **의도적 비확장**: 단독 step 은 OpenAI Responses 아이템과 형태가 같아(둘 다 `type`+`name`) 주장하지 않는다 — 커버리지가 아니라 모호성이 는다. 나머지 4 provider 무드리프트. **관찰(이월)**: ② Bedrock Responses/Chat Completions 모드 실측 미실시. ③ OpenAI custom tools 미지원 유지(수요 신호 대기). |
+
 ---
 
-Last Updated: 2026-07-21 (0.4.0)
+Last Updated: 2026-08-02 (0.5.0)

@@ -59,6 +59,12 @@ public sealed class GoogleToolCallParser : IToolCallParser
             }
         }
 
+        // Interactions API: steps[] items with type == "function_call"
+        if (TryGetInteractionSteps(element, out var steps) && steps.Count > 0)
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -92,6 +98,19 @@ public sealed class GoogleToolCallParser : IToolCallParser
             }
         }
 
+        // Interactions API steps carry the call in a different shape than generateContent parts
+        if (TryGetInteractionSteps(element, out var steps))
+        {
+            foreach (var step in steps)
+            {
+                var parsed = ParseInteractionStep(step);
+                if (parsed != null)
+                {
+                    results.Add(parsed);
+                }
+            }
+        }
+
         return results;
     }
 
@@ -110,7 +129,8 @@ public sealed class GoogleToolCallParser : IToolCallParser
     /// <inheritdoc />
     public bool HasToolCalls(JsonElement element)
     {
-        return TryGetFunctionCalls(element, out var calls) && calls.Count > 0;
+        return (TryGetFunctionCalls(element, out var calls) && calls.Count > 0)
+            || (TryGetInteractionSteps(element, out var steps) && steps.Count > 0);
     }
 
     /// <inheritdoc />
@@ -210,6 +230,73 @@ public sealed class GoogleToolCallParser : IToolCallParser
         return new ToolCall
         {
             Id = id,
+            Name = nameElement.GetString() ?? string.Empty,
+            Arguments = arguments
+        };
+    }
+
+    /// <summary>
+    /// Collects Interactions API function-call steps. An Interaction records its history as a
+    /// chronological <c>steps</c> array mixing thoughts, tool calls, tool results and the final
+    /// model output, so only the <c>function_call</c> entries are taken.
+    /// </summary>
+    /// <remarks>
+    /// Only the <c>steps</c> envelope is recognised, deliberately. A bare step is indistinguishable
+    /// from an OpenAI Responses <c>function_call</c> item (both are an object with
+    /// <c>type</c>/<c>name</c>), so claiming it here would make detection ambiguous rather than
+    /// more complete.
+    /// </remarks>
+    private static bool TryGetInteractionSteps(JsonElement element, out List<JsonElement> steps)
+    {
+        steps = [];
+
+        if (element.ValueKind != JsonValueKind.Object ||
+            !element.TryGetProperty("steps", out var stepsElement) ||
+            stepsElement.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var step in stepsElement.EnumerateArray())
+        {
+            if (IsFunctionCallStep(step))
+            {
+                steps.Add(step);
+            }
+        }
+
+        return steps.Count > 0;
+    }
+
+    private static bool IsFunctionCallStep(JsonElement element)
+        => element.ValueKind == JsonValueKind.Object
+            && element.TryGetProperty("type", out var type)
+            && type.ValueKind == JsonValueKind.String
+            && type.GetString() == "function_call"
+            && element.TryGetProperty("name", out _);
+
+    private static ToolCall? ParseInteractionStep(JsonElement element)
+    {
+        if (!element.TryGetProperty("name", out var nameElement))
+        {
+            return null;
+        }
+
+        var arguments = "{}";
+        if (element.TryGetProperty("arguments", out var argsElement))
+        {
+            arguments = argsElement.GetRawText();
+        }
+
+        // Unlike generateContent, the Interactions API supplies the id that the matching
+        // function_result must reference, so it is preserved rather than generated.
+        var id = element.TryGetProperty("id", out var idElement) && idElement.ValueKind == JsonValueKind.String
+            ? idElement.GetString()
+            : null;
+
+        return new ToolCall
+        {
+            Id = id ?? $"call_{Guid.NewGuid():N}"[..29],
             Name = nameElement.GetString() ?? string.Empty,
             Arguments = arguments
         };
