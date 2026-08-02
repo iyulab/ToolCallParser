@@ -282,6 +282,15 @@ generateContent 형식과 다른 점 셋:
 > **`steps` 봉투만 인식한다.** step 하나를 벗겨 단독으로 넘기면 OpenAI Responses 의
 > `function_call` 아이템과 형태가 같아(둘 다 `type`+`name` 객체) 구분이 불가능하다. 단독 step 까지
 > 여기서 주장하면 커버리지가 늘어나는 게 아니라 감지가 모호해진다.
+>
+> **판별자는 `steps` 라는 컨테이너 이름 자체다.** Google 은 감지 순서상 OpenAI 보다 먼저 프로브되므로,
+> 다른 provider 가 최상위 `steps` 배열을 도입하면 그 응답을 Google 이 가져가게 된다. 현재 다섯 포맷
+> 어디에도 최상위 `steps` 는 없다(2026-08-02 실측). 이 전제가 깨지면 판별자를 좁혀야 한다.
+
+⚠️ **결과 전송은 아직 generateContent 형식만 지원한다.** 아래 `FormatResults` 는 `functionResponse`
+(generateContent) 를 내보내며 `call_id` 를 담지 않는다. Interactions 는
+`{"type":"function_result","call_id":…,"name":…,"result":…,"is_error":…}` 를 기대하므로, 파싱으로
+보존한 `id` 를 현재 포맷터로는 되돌려 보낼 수 없다. 추적: `ISSUE-ToolCallParser-20260802-…-format-results-interactions.md`
 
 #### Tool 결과 전송
 

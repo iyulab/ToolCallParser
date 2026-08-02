@@ -10,7 +10,7 @@ Multi-provider tool call parsing and normalization for LLM applications.
 
 - **Unified Interface** - Parse tool calls from any LLM provider into a common format
 - **Auto-Detection** - Automatically detect the provider from response format
-- **5 wire formats** - OpenAI, Anthropic, Google, Cohere, AWS Bedrock — covering OpenAI, Azure, xAI, Mistral, DeepSeek, Claude, Gemini, Command R, and Bedrock
+- **5 provider parsers** - OpenAI, Anthropic, Google, Cohere, AWS Bedrock — covering OpenAI, Azure, xAI, Mistral, DeepSeek, Claude, Gemini, Command R, and Bedrock. Two of them read more than one wire format: OpenAI (Chat Completions + Responses) and Google (generateContent + Interactions)
 - **Self-hosted support** - Any OpenAI-compatible endpoint (Ollama, vLLM, LM Studio, LocalAI, TGI, GpuStack, Qwen, …) via `Provider.OpenAICompatible`
 - **Result Formatting** - Format tool results back to provider-specific format
 - **Extensible** - Implement `IToolCallParser` (with `CanParse` for auto-detection) for new formats
