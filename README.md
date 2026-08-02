@@ -89,7 +89,7 @@ var cohereParser = ToolCallParserFactory.GetParser(Provider.Cohere);
 | Mistral | OpenAI-compatible | [docs](https://docs.mistral.ai/capabilities/function_calling) |
 | Cohere | Unique format | [docs](https://docs.cohere.com/docs/tool-use-overview) |
 | DeepSeek | OpenAI-compatible | [docs](https://api-docs.deepseek.com/guides/function_calling) |
-| AWS Bedrock | `toolUse` blocks | [docs](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) |
+| AWS Bedrock | `toolUse` blocks (Converse); also exposes OpenAI-compatible Chat Completions + Responses endpoints, which detect as `Provider.OpenAI` | [docs](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) |
 
 ### Open Source / Self-Hosted
 
@@ -236,9 +236,21 @@ var openAiResults = openAiParser.FormatResults(results);
 var anthropicParser = ToolCallParserFactory.GetParser(Provider.Anthropic);
 var claudeResults = anthropicParser.FormatResults(results);
 
-// Format for Google Gemini
+// Format for Google Gemini (generateContent)
 var geminiParser = ToolCallParserFactory.GetParser(Provider.Google);
 var geminiResults = geminiParser.FormatResults(results);
+```
+
+Google serves tool calling through two wire formats, and a result payload carries nothing that says
+which one it is headed for — so for the Interactions surface the caller names it. The `call_id` sent
+back is the step `id` that parsing preserved:
+
+```csharp
+using ToolCallParser.Parsers;
+
+var parser = new GoogleToolCallParser();
+var interactionsResults = parser.FormatResults(results, GoogleSurface.Interactions);
+// [{ "type": "function_result", "call_id": "...", "name": "...", "result": {...}, "is_error": false }]
 ```
 
 ## Provider Detection
@@ -347,8 +359,7 @@ public static class ProviderExtensions
 
 ## Related Projects
 
-- [ironhive-cli](https://github.com/iyulab/ironhive-cli) - CLI agent using ToolCallParser
-- [TokenMeter](https://github.com/iyulab/TokenMeter) - Token counting and cost calculation
+- [TokenMeter](https://github.com/iyulab/TokenMeter) - Model catalog and cost calculation
 
 ## License
 

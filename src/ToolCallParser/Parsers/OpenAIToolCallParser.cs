@@ -20,27 +20,27 @@ public sealed class OpenAIToolCallParser : IToolCallParser
     public bool CanParse(JsonElement element)
     {
         // choices array (OpenAI response format)
-        if (element.TryGetProperty("choices", out _))
+        if (element.TryGetObjectProperty("choices", out _))
         {
             return true;
         }
 
         // tool_calls directly
-        if (element.TryGetProperty("tool_calls", out _))
+        if (element.TryGetObjectProperty("tool_calls", out _))
         {
             return true;
         }
 
         // function_call (legacy format)
-        if (element.TryGetProperty("function_call", out _))
+        if (element.TryGetObjectProperty("function_call", out _))
         {
             return true;
         }
 
         // message object with tool_calls / function_call
-        if (element.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.Object)
+        if (element.TryGetObjectProperty("message", out var message) && message.ValueKind == JsonValueKind.Object)
         {
-            if (message.TryGetProperty("tool_calls", out _) || message.TryGetProperty("function_call", out _))
+            if (message.TryGetObjectProperty("tool_calls", out _) || message.TryGetObjectProperty("function_call", out _))
             {
                 return true;
             }
@@ -139,26 +139,26 @@ public sealed class OpenAIToolCallParser : IToolCallParser
         toolCalls = default;
 
         // Direct tool_calls array
-        if (element.TryGetProperty("tool_calls", out toolCalls) && toolCalls.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("tool_calls", out toolCalls) && toolCalls.ValueKind == JsonValueKind.Array)
         {
             return true;
         }
 
         // Nested in choices[].message.tool_calls (API response format)
-        if (element.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array)
         {
             foreach (var choice in choices.EnumerateArray())
             {
-                if (choice.TryGetProperty("message", out var message) &&
-                    message.TryGetProperty("tool_calls", out toolCalls) &&
+                if (choice.TryGetObjectProperty("message", out var message) &&
+                    message.TryGetObjectProperty("tool_calls", out toolCalls) &&
                     toolCalls.ValueKind == JsonValueKind.Array)
                 {
                     return true;
                 }
 
                 // Also check delta for streaming responses
-                if (choice.TryGetProperty("delta", out var delta) &&
-                    delta.TryGetProperty("tool_calls", out toolCalls) &&
+                if (choice.TryGetObjectProperty("delta", out var delta) &&
+                    delta.TryGetObjectProperty("tool_calls", out toolCalls) &&
                     toolCalls.ValueKind == JsonValueKind.Array)
                 {
                     return true;
@@ -167,9 +167,9 @@ public sealed class OpenAIToolCallParser : IToolCallParser
         }
 
         // Nested in message.tool_calls
-        if (element.TryGetProperty("message", out var msg) &&
+        if (element.TryGetObjectProperty("message", out var msg) &&
             msg.ValueKind == JsonValueKind.Object &&
-            msg.TryGetProperty("tool_calls", out toolCalls) &&
+            msg.TryGetObjectProperty("tool_calls", out toolCalls) &&
             toolCalls.ValueKind == JsonValueKind.Array)
         {
             return true;
@@ -183,18 +183,18 @@ public sealed class OpenAIToolCallParser : IToolCallParser
         functionCall = default;
 
         // Direct function_call
-        if (element.TryGetProperty("function_call", out functionCall) && functionCall.ValueKind == JsonValueKind.Object)
+        if (element.TryGetObjectProperty("function_call", out functionCall) && functionCall.ValueKind == JsonValueKind.Object)
         {
             return true;
         }
 
         // Nested in choices[].message.function_call
-        if (element.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array)
         {
             foreach (var choice in choices.EnumerateArray())
             {
-                if (choice.TryGetProperty("message", out var message) &&
-                    message.TryGetProperty("function_call", out functionCall) &&
+                if (choice.TryGetObjectProperty("message", out var message) &&
+                    message.TryGetObjectProperty("function_call", out functionCall) &&
                     functionCall.ValueKind == JsonValueKind.Object)
                 {
                     return true;
@@ -207,23 +207,23 @@ public sealed class OpenAIToolCallParser : IToolCallParser
 
     private static ToolCall? ParseToolCall(JsonElement element)
     {
-        if (!element.TryGetProperty("id", out var idElement))
+        if (!element.TryGetObjectProperty("id", out var idElement))
         {
             return null;
         }
 
-        if (!element.TryGetProperty("function", out var functionElement))
+        if (!element.TryGetObjectProperty("function", out var functionElement))
         {
             return null;
         }
 
-        if (!functionElement.TryGetProperty("name", out var nameElement))
+        if (!functionElement.TryGetObjectProperty("name", out var nameElement))
         {
             return null;
         }
 
         var arguments = "{}";
-        if (functionElement.TryGetProperty("arguments", out var argsElement))
+        if (functionElement.TryGetObjectProperty("arguments", out var argsElement))
         {
             arguments = argsElement.GetString() ?? "{}";
         }
@@ -254,7 +254,7 @@ public sealed class OpenAIToolCallParser : IToolCallParser
             return true;
         }
 
-        if (element.TryGetProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in output.EnumerateArray())
             {
@@ -270,10 +270,10 @@ public sealed class OpenAIToolCallParser : IToolCallParser
 
     private static bool IsResponsesFunctionCallItem(JsonElement element)
         => element.ValueKind == JsonValueKind.Object
-            && element.TryGetProperty("type", out var type)
+            && element.TryGetObjectProperty("type", out var type)
             && type.ValueKind == JsonValueKind.String
             && type.GetString() == "function_call"
-            && element.TryGetProperty("name", out _);
+            && element.TryGetObjectProperty("name", out _);
 
     private static void ParseResponsesFunctionCallItems(JsonElement element, List<ToolCall> results)
     {
@@ -292,7 +292,7 @@ public sealed class OpenAIToolCallParser : IToolCallParser
             return;
         }
 
-        if (element.TryGetProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("output", out var output) && output.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in output.EnumerateArray())
             {
@@ -312,20 +312,20 @@ public sealed class OpenAIToolCallParser : IToolCallParser
 
     private static ToolCall? ParseResponsesFunctionCallItem(JsonElement element)
     {
-        if (!element.TryGetProperty("name", out var nameElement))
+        if (!element.TryGetObjectProperty("name", out var nameElement))
         {
             return null;
         }
 
         // call_id is the reference id used to submit results; fall back to the item id.
-        var id = element.TryGetProperty("call_id", out var callId) && callId.ValueKind == JsonValueKind.String
+        var id = element.TryGetObjectProperty("call_id", out var callId) && callId.ValueKind == JsonValueKind.String
             ? callId.GetString()
-            : element.TryGetProperty("id", out var itemId) && itemId.ValueKind == JsonValueKind.String
+            : element.TryGetObjectProperty("id", out var itemId) && itemId.ValueKind == JsonValueKind.String
                 ? itemId.GetString()
                 : null;
 
         var arguments = "{}";
-        if (element.TryGetProperty("arguments", out var argsElement))
+        if (element.TryGetObjectProperty("arguments", out var argsElement))
         {
             // Arguments are a JSON-encoded string in the Responses API; tolerate an
             // already-parsed object as well (seen in adjacent item-style formats).
@@ -344,13 +344,13 @@ public sealed class OpenAIToolCallParser : IToolCallParser
 
     private static ToolCall? ParseFunctionCall(JsonElement element)
     {
-        if (!element.TryGetProperty("name", out var nameElement))
+        if (!element.TryGetObjectProperty("name", out var nameElement))
         {
             return null;
         }
 
         var arguments = "{}";
-        if (element.TryGetProperty("arguments", out var argsElement))
+        if (element.TryGetObjectProperty("arguments", out var argsElement))
         {
             arguments = argsElement.GetString() ?? "{}";
         }

@@ -156,6 +156,14 @@ public static class ToolCallParserFactory
     /// broad OpenAI-compatible format (whose <c>choices</c>/<c>tool_calls</c> markers are the
     /// most permissive), so a response that matches a unique format is never misclassified as OpenAI.
     /// </summary>
+    /// <remarks>
+    /// The order only decides accuracy; safety rests on every <c>CanParse</c> being total. A probe
+    /// runs against payloads meant for other providers by construction, so one that faults on an
+    /// unfamiliar shape takes down detection for formats sitting later in this array — the earlier
+    /// the probe, the wider the blast radius. Use
+    /// <see cref="JsonElementExtensions.TryGetObjectProperty"/> for property reads whose receiver
+    /// is not already known to be an object; <c>ShapeMismatchRobustnessTests</c> holds the line.
+    /// </remarks>
     private static readonly Provider[] DetectionOrder =
     [
         Provider.Anthropic,

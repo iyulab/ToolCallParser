@@ -21,17 +21,17 @@ public sealed class AnthropicToolCallParser : IToolCallParser
     public bool CanParse(JsonElement element)
     {
         // stop_reason (Anthropic-specific field name)
-        if (element.TryGetProperty("stop_reason", out _))
+        if (element.TryGetObjectProperty("stop_reason", out _))
         {
             return true;
         }
 
         // content array with tool_use / tool_result blocks
-        if (element.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
         {
             foreach (var block in content.EnumerateArray())
             {
-                if (block.TryGetProperty("type", out var typeElement))
+                if (block.TryGetObjectProperty("type", out var typeElement))
                 {
                     var type = typeElement.GetString();
                     if (type == "tool_use" || type == "tool_result")
@@ -99,7 +99,7 @@ public sealed class AnthropicToolCallParser : IToolCallParser
     public bool HasToolCalls(JsonElement element)
     {
         // Check stop_reason first (fast path)
-        if (element.TryGetProperty("stop_reason", out var stopReason))
+        if (element.TryGetObjectProperty("stop_reason", out var stopReason))
         {
             var reason = stopReason.GetString();
             if (reason == "tool_use")
@@ -150,7 +150,7 @@ public sealed class AnthropicToolCallParser : IToolCallParser
         contentArray = default;
 
         // Direct content array
-        if (element.TryGetProperty("content", out contentArray) && contentArray.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("content", out contentArray) && contentArray.ValueKind == JsonValueKind.Array)
         {
             return true;
         }
@@ -160,7 +160,7 @@ public sealed class AnthropicToolCallParser : IToolCallParser
 
     private static bool IsToolUseBlock(JsonElement block)
     {
-        if (!block.TryGetProperty("type", out var typeElement))
+        if (!block.TryGetObjectProperty("type", out var typeElement))
         {
             return false;
         }
@@ -170,18 +170,18 @@ public sealed class AnthropicToolCallParser : IToolCallParser
 
     private static ToolCall? ParseToolUseBlock(JsonElement element)
     {
-        if (!element.TryGetProperty("id", out var idElement))
+        if (!element.TryGetObjectProperty("id", out var idElement))
         {
             return null;
         }
 
-        if (!element.TryGetProperty("name", out var nameElement))
+        if (!element.TryGetObjectProperty("name", out var nameElement))
         {
             return null;
         }
 
         var arguments = "{}";
-        if (element.TryGetProperty("input", out var inputElement))
+        if (element.TryGetObjectProperty("input", out var inputElement))
         {
             arguments = inputElement.GetRawText();
         }

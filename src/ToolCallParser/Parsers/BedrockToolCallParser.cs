@@ -22,21 +22,21 @@ public sealed class BedrockToolCallParser : IToolCallParser
     public bool CanParse(JsonElement element)
     {
         // stopReason == "tool_use" (Bedrock uses camelCase)
-        if (element.TryGetProperty("stopReason", out var stopReason) &&
+        if (element.TryGetObjectProperty("stopReason", out var stopReason) &&
             stopReason.GetString() == "tool_use")
         {
             return true;
         }
 
         // toolUse blocks under output.message.content
-        if (element.TryGetProperty("output", out var output) &&
-            output.TryGetProperty("message", out var message) &&
-            message.TryGetProperty("content", out var content) &&
+        if (element.TryGetObjectProperty("output", out var output) &&
+            output.TryGetObjectProperty("message", out var message) &&
+            message.TryGetObjectProperty("content", out var content) &&
             content.ValueKind == JsonValueKind.Array)
         {
             foreach (var block in content.EnumerateArray())
             {
-                if (block.TryGetProperty("toolUse", out _))
+                if (block.TryGetObjectProperty("toolUse", out _))
                 {
                     return true;
                 }
@@ -95,7 +95,7 @@ public sealed class BedrockToolCallParser : IToolCallParser
     public bool HasToolCalls(JsonElement element)
     {
         // Check stopReason
-        if (element.TryGetProperty("stopReason", out var stopReason))
+        if (element.TryGetObjectProperty("stopReason", out var stopReason))
         {
             var reason = stopReason.GetString();
             if (reason == "tool_use")
@@ -144,14 +144,14 @@ public sealed class BedrockToolCallParser : IToolCallParser
         toolUseBlocks = [];
 
         // Check output.message.content[].toolUse (Converse API response format)
-        if (element.TryGetProperty("output", out var output) &&
-            output.TryGetProperty("message", out var message) &&
-            message.TryGetProperty("content", out var content) &&
+        if (element.TryGetObjectProperty("output", out var output) &&
+            output.TryGetObjectProperty("message", out var message) &&
+            message.TryGetObjectProperty("content", out var content) &&
             content.ValueKind == JsonValueKind.Array)
         {
             foreach (var block in content.EnumerateArray())
             {
-                if (block.TryGetProperty("toolUse", out var toolUse))
+                if (block.TryGetObjectProperty("toolUse", out var toolUse))
                 {
                     toolUseBlocks.Add(toolUse);
                 }
@@ -159,14 +159,14 @@ public sealed class BedrockToolCallParser : IToolCallParser
         }
 
         // Check message.content[].toolUse (message format, only if message is an object)
-        if (element.TryGetProperty("message", out var directMessage) &&
+        if (element.TryGetObjectProperty("message", out var directMessage) &&
             directMessage.ValueKind == JsonValueKind.Object &&
-            directMessage.TryGetProperty("content", out var directContent) &&
+            directMessage.TryGetObjectProperty("content", out var directContent) &&
             directContent.ValueKind == JsonValueKind.Array)
         {
             foreach (var block in directContent.EnumerateArray())
             {
-                if (block.TryGetProperty("toolUse", out var toolUse))
+                if (block.TryGetObjectProperty("toolUse", out var toolUse))
                 {
                     toolUseBlocks.Add(toolUse);
                 }
@@ -174,11 +174,11 @@ public sealed class BedrockToolCallParser : IToolCallParser
         }
 
         // Check content[].toolUse directly
-        if (element.TryGetProperty("content", out var contentOnly) && contentOnly.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("content", out var contentOnly) && contentOnly.ValueKind == JsonValueKind.Array)
         {
             foreach (var block in contentOnly.EnumerateArray())
             {
-                if (block.TryGetProperty("toolUse", out var toolUse))
+                if (block.TryGetObjectProperty("toolUse", out var toolUse))
                 {
                     toolUseBlocks.Add(toolUse);
                 }
@@ -186,7 +186,7 @@ public sealed class BedrockToolCallParser : IToolCallParser
         }
 
         // Check direct toolUse
-        if (element.TryGetProperty("toolUse", out var directToolUse))
+        if (element.TryGetObjectProperty("toolUse", out var directToolUse))
         {
             toolUseBlocks.Add(directToolUse);
         }
@@ -196,17 +196,17 @@ public sealed class BedrockToolCallParser : IToolCallParser
 
     private static ToolCall? ParseToolUse(JsonElement element)
     {
-        if (!element.TryGetProperty("name", out var nameElement))
+        if (!element.TryGetObjectProperty("name", out var nameElement))
         {
             return null;
         }
 
-        var id = element.TryGetProperty("toolUseId", out var idElement)
+        var id = element.TryGetObjectProperty("toolUseId", out var idElement)
             ? idElement.GetString() ?? $"tooluse_{Guid.NewGuid():N}"[..29]
             : $"tooluse_{Guid.NewGuid():N}"[..29];
 
         var arguments = "{}";
-        if (element.TryGetProperty("input", out var inputElement))
+        if (element.TryGetObjectProperty("input", out var inputElement))
         {
             arguments = inputElement.GetRawText();
         }

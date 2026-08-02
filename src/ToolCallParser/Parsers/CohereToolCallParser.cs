@@ -23,45 +23,72 @@ public sealed class CohereToolCallParser : IToolCallParser
     public bool CanParse(JsonElement element)
     {
         // finish_reason == "TOOL_CALL"
-        if (element.TryGetProperty("finish_reason", out var finishReason) &&
+        if (element.TryGetObjectProperty("finish_reason", out var finishReason) &&
             finishReason.GetString() == "TOOL_CALL")
         {
             return true;
         }
 
         // tool_plan (Cohere-specific)
-        if (element.TryGetProperty("tool_plan", out _))
+        if (element.TryGetObjectProperty("tool_plan", out _))
         {
             return true;
         }
 
         // actions array (multi-step) with tool_name
-        if (element.TryGetProperty("actions", out var actions) && actions.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("actions", out var actions) && actions.ValueKind == JsonValueKind.Array)
         {
             foreach (var action in actions.EnumerateArray())
             {
-                if (action.TryGetProperty("tool_name", out _))
+                if (action.TryGetObjectProperty("tool_name", out _))
                 {
                     return true;
                 }
             }
         }
 
-        // Cohere V1: top-level tool_calls whose elements are the bare { name, parameters }
-        // shape (no "function" wrapper). OpenAI and Cohere V2 wrap each call in "function",
-        // so requiring a bare "name" without "function" distinguishes legacy Cohere V1 without
-        // stealing OpenAI responses. Without this, a finish_reason-less V1 response falls through
-        // to the OpenAI parser, which cannot read { name, parameters } and silently drops the call.
-        if (element.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.ValueKind == JsonValueKind.Array)
+        // Cohere V1: tool_calls whose elements are the bare { name, parameters } shape (no
+        // "function" wrapper). OpenAI and Cohere V2 wrap each call in "function", so requiring a
+        // bare "name" without "function" distinguishes legacy Cohere V1 without stealing OpenAI
+        // responses. Without this, a finish_reason-less V1 response falls through to the OpenAI
+        // parser, which cannot read { name, parameters } and silently drops the call.
+        //
+        // Both placements must be checked. V1 nests the array under "message", and that is the
+        // shape Parse already reads — recognising only the top-level one left the nested form
+        // detectable by no parser at all.
+        if (element.TryGetObjectProperty("tool_calls", out var toolCalls) &&
+            ContainsBareToolCall(toolCalls))
         {
-            foreach (var toolCall in toolCalls.EnumerateArray())
+            return true;
+        }
+
+        if (element.TryGetObjectProperty("message", out var v1Message) &&
+            v1Message.TryGetObjectProperty("tool_calls", out var messageToolCalls) &&
+            ContainsBareToolCall(messageToolCalls))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when the array holds at least one legacy Cohere V1 call: a bare <c>name</c> with no
+    /// <c>function</c> wrapper.
+    /// </summary>
+    private static bool ContainsBareToolCall(JsonElement toolCalls)
+    {
+        if (toolCalls.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var toolCall in toolCalls.EnumerateArray())
+        {
+            if (toolCall.TryGetObjectProperty("name", out _) &&
+                !toolCall.TryGetObjectProperty("function", out _))
             {
-                if (toolCall.ValueKind == JsonValueKind.Object &&
-                    toolCall.TryGetProperty("name", out _) &&
-                    !toolCall.TryGetProperty("function", out _))
-                {
-                    return true;
-                }
+                return true;
             }
         }
 
@@ -86,7 +113,7 @@ public sealed class CohereToolCallParser : IToolCallParser
         var results = new List<ToolCall>();
 
         // Cohere V2 API: tool_calls array
-        if (element.TryGetProperty("tool_calls", out var toolCalls) && toolCalls.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("tool_calls", out var toolCalls) && toolCalls.ValueKind == JsonValueKind.Array)
         {
             foreach (var toolCall in toolCalls.EnumerateArray())
             {
@@ -99,9 +126,9 @@ public sealed class CohereToolCallParser : IToolCallParser
         }
 
         // Cohere V1 API: tool_plan + tool_calls in message (only if message is an object)
-        if (element.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.Object)
+        if (element.TryGetObjectProperty("message", out var message) && message.ValueKind == JsonValueKind.Object)
         {
-            if (message.TryGetProperty("tool_calls", out var msgToolCalls) && msgToolCalls.ValueKind == JsonValueKind.Array)
+            if (message.TryGetObjectProperty("tool_calls", out var msgToolCalls) && msgToolCalls.ValueKind == JsonValueKind.Array)
             {
                 foreach (var toolCall in msgToolCalls.EnumerateArray())
                 {
@@ -115,7 +142,7 @@ public sealed class CohereToolCallParser : IToolCallParser
         }
 
         // Check for actions array (multi-step tool use)
-        if (element.TryGetProperty("actions", out var actions) && actions.ValueKind == JsonValueKind.Array)
+        if (element.TryGetObjectProperty("actions", out var actions) && actions.ValueKind == JsonValueKind.Array)
         {
             foreach (var action in actions.EnumerateArray())
             {
@@ -146,7 +173,7 @@ public sealed class CohereToolCallParser : IToolCallParser
     public bool HasToolCalls(JsonElement element)
     {
         // Check finish_reason
-        if (element.TryGetProperty("finish_reason", out var finishReason))
+        if (element.TryGetObjectProperty("finish_reason", out var finishReason))
         {
             var reason = finishReason.GetString();
             if (reason == "TOOL_CALL")
@@ -156,7 +183,7 @@ public sealed class CohereToolCallParser : IToolCallParser
         }
 
         // Check for tool_calls array
-        if (element.TryGetProperty("tool_calls", out var toolCalls) &&
+        if (element.TryGetObjectProperty("tool_calls", out var toolCalls) &&
             toolCalls.ValueKind == JsonValueKind.Array &&
             toolCalls.GetArrayLength() > 0)
         {
@@ -164,11 +191,21 @@ public sealed class CohereToolCallParser : IToolCallParser
         }
 
         // Check message.tool_calls (only if message is an object)
-        if (element.TryGetProperty("message", out var message) &&
+        if (element.TryGetObjectProperty("message", out var message) &&
             message.ValueKind == JsonValueKind.Object &&
-            message.TryGetProperty("tool_calls", out var msgToolCalls) &&
+            message.TryGetObjectProperty("tool_calls", out var msgToolCalls) &&
             msgToolCalls.ValueKind == JsonValueKind.Array &&
             msgToolCalls.GetArrayLength() > 0)
+        {
+            return true;
+        }
+
+        // Check the multi-step actions array. CanParse and Parse both read this surface, so
+        // omitting it here made the three disagree: callers following the documented
+        // "if (HasToolCalls) Parse" guard skipped an actions response entirely.
+        if (element.TryGetObjectProperty("actions", out var actions) &&
+            actions.ValueKind == JsonValueKind.Array &&
+            actions.GetArrayLength() > 0)
         {
             return true;
         }
@@ -198,19 +235,19 @@ public sealed class CohereToolCallParser : IToolCallParser
     private static ToolCall? ParseToolCall(JsonElement element)
     {
         // Cohere V2 format: { id, type, function: { name, arguments } }
-        if (element.TryGetProperty("function", out var functionElement))
+        if (element.TryGetObjectProperty("function", out var functionElement))
         {
-            if (!functionElement.TryGetProperty("name", out var nameElement))
+            if (!functionElement.TryGetObjectProperty("name", out var nameElement))
             {
                 return null;
             }
 
-            var id = element.TryGetProperty("id", out var idElement)
+            var id = element.TryGetObjectProperty("id", out var idElement)
                 ? idElement.GetString() ?? $"call_{Guid.NewGuid():N}"[..29]
                 : $"call_{Guid.NewGuid():N}"[..29];
 
             var arguments = "{}";
-            if (functionElement.TryGetProperty("arguments", out var argsElement))
+            if (functionElement.TryGetObjectProperty("arguments", out var argsElement))
             {
                 arguments = argsElement.ValueKind == JsonValueKind.String
                     ? argsElement.GetString() ?? "{}"
@@ -226,12 +263,12 @@ public sealed class CohereToolCallParser : IToolCallParser
         }
 
         // Cohere V1 format: { name, parameters }
-        if (element.TryGetProperty("name", out var directNameElement))
+        if (element.TryGetObjectProperty("name", out var directNameElement))
         {
             var id = $"call_{Guid.NewGuid():N}"[..29];
 
             var arguments = "{}";
-            if (element.TryGetProperty("parameters", out var paramsElement))
+            if (element.TryGetObjectProperty("parameters", out var paramsElement))
             {
                 arguments = paramsElement.GetRawText();
             }
@@ -250,7 +287,7 @@ public sealed class CohereToolCallParser : IToolCallParser
     private static ToolCall? ParseAction(JsonElement element)
     {
         // Multi-step action format: { tool_name, tool_input }
-        if (!element.TryGetProperty("tool_name", out var nameElement))
+        if (!element.TryGetObjectProperty("tool_name", out var nameElement))
         {
             return null;
         }
@@ -258,7 +295,7 @@ public sealed class CohereToolCallParser : IToolCallParser
         var id = $"call_{Guid.NewGuid():N}"[..29];
 
         var arguments = "{}";
-        if (element.TryGetProperty("tool_input", out var inputElement))
+        if (element.TryGetObjectProperty("tool_input", out var inputElement))
         {
             arguments = inputElement.GetRawText();
         }
