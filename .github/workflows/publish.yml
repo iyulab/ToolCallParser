@@ -46,7 +46,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test --configuration Release --no-build --verbosity normal
+        run: dotnet test --configuration Release --no-build --verbosity normal --blame-hang --blame-hang-timeout 5m
 
       - name: Pack
         run: dotnet pack src/ToolCallParser/ToolCallParser.csproj --configuration Release --no-build --output ./nupkg
