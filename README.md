@@ -207,7 +207,7 @@ var toolCall = toolCalls[0];
 var location = toolCall.GetArgument<string>("location");
 
 // Get all arguments as a typed object
-var args = toolCall.GetArguments<WeatherArgs>();
+var weather = toolCall.GetArguments<WeatherArgs>();
 
 // Check if argument exists
 if (toolCall.HasArgument("unit"))
@@ -288,13 +288,13 @@ fixed set of parsers and is not a mutable registry — a custom parser is just a
 public class CustomProviderParser : IToolCallParser
 {
     public Provider Provider => Provider.OpenAICompatible;
-    public IReadOnlyList<ToolCall> Parse(string response) { /* ... */ }
-    public IReadOnlyList<ToolCall> Parse(JsonElement element) { /* ... */ }
-    public bool HasToolCalls(string response) { /* ... */ }
-    public bool HasToolCalls(JsonElement element) { /* ... */ }
+    public IReadOnlyList<ToolCall> Parse(string response) => throw new NotImplementedException(); // your parsing
+    public IReadOnlyList<ToolCall> Parse(JsonElement element) => throw new NotImplementedException(); // your parsing
+    public bool HasToolCalls(string response) => throw new NotImplementedException(); // your parsing
+    public bool HasToolCalls(JsonElement element) => throw new NotImplementedException(); // your parsing
     // Optional: override CanParse for auto-detection; defaults to HasToolCalls.
-    public bool CanParse(JsonElement element) { /* ... */ }
-    public string FormatResults(IEnumerable<ToolCallResult> results) { /* ... */ }
+    public bool CanParse(JsonElement element) => throw new NotImplementedException(); // your parsing
+    public string FormatResults(IEnumerable<ToolCallResult> results) => throw new NotImplementedException(); // your parsing
 }
 
 // Use it directly

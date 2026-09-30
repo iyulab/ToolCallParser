@@ -24,6 +24,7 @@
     <!-- Hang dumps for stuck tests: the Microsoft.Testing.Platform equivalent of VSTest's blame-hang -->
     <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
     <PackageReference Include="Iyu.Conventions.Testing" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
+## [0.6.5] - Unreleased
+
+### Fixed
+- **Every C# example in the README compiles.** The arguments example declared `var args`, which clashes with the
+  implicit `args` of a top-level program. The custom-parser skeleton had members with no body; it now throws
+  `NotImplementedException` in each, so its member signatures are checked against `IToolCallParser`. A test compiles
+  every README block against the current API.
+
 ## [0.6.4] - 2026-09-30
 
 ### Changed
