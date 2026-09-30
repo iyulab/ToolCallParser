@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [0.6.5] - Unreleased
+## [0.6.5] - 2026-10-01
 
 ### Fixed
 - **Every C# example in the README compiles.** The arguments example declared `var args`, which clashes with the
