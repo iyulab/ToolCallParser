@@ -6,14 +6,24 @@
 
 Multi-provider tool call parsing and normalization for LLM applications.
 
+## Packages
+
+| Package | Purpose |
+|---------|---------|
+| `ToolCallParser` | Parses LLM tool calls from any supported provider's response JSON into one `ToolCall` shape, and formats tool results back to that provider's format |
+
 ## Features
 
-- **Unified Interface** - Parse tool calls from any LLM provider into a common format
-- **Auto-Detection** - Automatically detect the provider from response format
-- **5 provider parsers** - OpenAI, Anthropic, Google, Cohere, AWS Bedrock — covering OpenAI, Azure, xAI, Mistral, DeepSeek, Claude, Gemini, Command R, and Bedrock. Two of them read more than one wire format: OpenAI (Chat Completions + Responses) and Google (generateContent + Interactions)
-- **Self-hosted support** - Any OpenAI-compatible endpoint (Ollama, vLLM, LM Studio, LocalAI, TGI, GpuStack, Qwen, …) via `Provider.OpenAICompatible`
-- **Result Formatting** - Format tool results back to provider-specific format
-- **Extensible** - Implement `IToolCallParser` (with `CanParse` for auto-detection) for new formats
+No registration or configuration is needed — every entry point is a static method or a public class you construct.
+
+- **Auto-detected parsing** - `ToolCallParserFactory.Parse(string | JsonElement)` detects the format and returns `IReadOnlyList<ToolCall>`; when detection fails it tries each parser in turn. `ToolCallParserFactory.HasToolCalls(...)` answers whether a response contains any calls
+- **Provider detection** - `ToolCallParserFactory.DetectProvider(string | JsonElement)` returns the detected `Provider` (`Provider.Auto` when nothing matches)
+- **5 provider parsers** - `OpenAIToolCallParser`, `AnthropicToolCallParser`, `GoogleToolCallParser`, `CohereToolCallParser`, `BedrockToolCallParser` (namespace `ToolCallParser.Parsers`), reachable via `ToolCallParserFactory.GetParser(Provider)` / `TryGetParser(Provider, out ...)` or by `new`. They cover OpenAI, Azure OpenAI, xAI, Mistral, DeepSeek, Claude, Gemini, Command R and Bedrock. Two of them read more than one wire format: OpenAI (Chat Completions + Responses) and Google (generateContent + Interactions). `GetParser(Provider.Auto)` throws — use `Parse`/`DetectProvider` for detection
+- **Self-hosted / compatible endpoints** - any OpenAI-compatible server (Ollama, vLLM, LM Studio, LocalAI, TGI, GpuStack, Qwen, …) via `Provider.OpenAICompatible`; Anthropic-compatible endpoints via `Provider.AnthropicCompatible`
+- **Typed argument access** - `ToolCall.GetArgument<T>(name)`, `GetArguments<T>()`, `HasArgument(name)`, `GetArgumentsAsJson()`
+- **Result formatting** - `IToolCallParser.FormatResults(IEnumerable<ToolCallResult>)` with `ToolCallResult.Success(...)` / `Failure(...)`; for Gemini's Interactions surface use `GoogleToolCallParser.FormatResults(results, GoogleSurface.Interactions)`
+- **Format categories** - `Provider.GetFormat()`, `IsOpenAICompatible()`, `IsAnthropicCompatible()`, `GetDocumentationUrl()`; `ToolCallParserFactory.GetRegisteredProviders()` / `GetOpenAICompatibleProviders()` list what the factory serves
+- **Extensible** - implement `IToolCallParser` (override `CanParse` to control recognition; it defaults to `HasToolCalls`) and call it directly — the factory is a fixed set, not a registry
 
 ## Installation
 
@@ -272,6 +282,9 @@ switch (provider)
         break;
     case Provider.Bedrock:
         Console.WriteLine("AWS Bedrock format detected");
+        break;
+    case Provider.Cohere:
+        Console.WriteLine("Cohere format detected");
         break;
     case Provider.Auto:
         Console.WriteLine("Could not auto-detect");
