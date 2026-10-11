@@ -55,12 +55,21 @@ jobs:
       - name: Push to NuGet
         run: dotnet nuget push ./nupkg/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
+      # Release notes = this version's CHANGELOG.md section. Every iyulab publish workflow carries this awk program
+      # verbatim; change it in all of them or in none.
+      - name: Release notes (this version's CHANGELOG section)
+        shell: bash
+        run: |
+          VERSION=$(grep -oP '<(Version|VersionPrefix)>\K[^<]+' Directory.Build.props | head -1)
+          awk -v v="$VERSION" '/^## /{if(p)exit;h=$0;sub(/^## +\[?v?/,"",h);c=substr(h,length(v)+1,1);if(index(h,v)==1&&(c==""||c=="]"||c==" "||c=="\t")){p=1;next}}p&&(n||$0!~/^[ \t]*$/){l[++n]=$0}END{while(n&&(l[n]~/^[ \t]*$/||l[n]~/^---+$/))n--;for(i=1;i<=n;i++)print l[i]}' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then echo "::error::CHANGELOG.md has no section for $VERSION"; exit 1; fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
+          body_path: release-notes.md
           name: v${{ steps.version.outputs.version }}
-          generate_release_notes: true
           files: ./nupkg/*.nupkg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
