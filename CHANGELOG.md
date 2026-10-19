@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file. Versions follow
 [Semantic Versioning](https://semver.org/); while the major version is 0, a minor release may contain
 breaking changes, and each one is marked **Breaking** with a migration note.
 
-## [Unreleased]
+## [0.7.0] - Unreleased
 
 ### Added
 - **`ToolCallMarkup` reads tool calls an open model wrote as text.** `Read(text)` returns the Hermes / Qwen 2.5
