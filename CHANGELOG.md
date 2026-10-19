@@ -7,6 +7,7 @@ breaking changes, and each one is marked **Breaking** with a migration note.
 ## [Unreleased]
 
 ### Fixed
+- **The format guide (`docs/tool-call-format-guide.md`) no longer carries a maintenance log** — release history is this file.
 - **The package links to the repository as its project site** (`PackageProjectUrl`) — its nuget.org page had no project link.
 
 ### Changed
