@@ -22,6 +22,7 @@
     <Product>ToolCallParser</Product>
     <Copyright>Copyright (c) iyulab</Copyright>
     <RepositoryUrl>https://github.com/iyulab/ToolCallParser</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/iyulab/ToolCallParser</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
