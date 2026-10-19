@@ -71,13 +71,15 @@ public sealed class GoogleToolCallParser : IToolCallParser
     /// <inheritdoc />
     public IReadOnlyList<ToolCall> Parse(string response)
     {
-        if (string.IsNullOrWhiteSpace(response))
+        if (!JsonText.TryParse(response, out var doc))
         {
             return [];
         }
 
-        using var doc = JsonDocument.Parse(response);
-        return Parse(doc.RootElement);
+        using (doc)
+        {
+            return Parse(doc.RootElement);
+        }
     }
 
     /// <inheritdoc />
@@ -117,13 +119,15 @@ public sealed class GoogleToolCallParser : IToolCallParser
     /// <inheritdoc />
     public bool HasToolCalls(string response)
     {
-        if (string.IsNullOrWhiteSpace(response))
+        if (!JsonText.TryParse(response, out var doc))
         {
             return false;
         }
 
-        using var doc = JsonDocument.Parse(response);
-        return HasToolCalls(doc.RootElement);
+        using (doc)
+        {
+            return HasToolCalls(doc.RootElement);
+        }
     }
 
     /// <inheritdoc />

@@ -20,7 +20,9 @@ No registration or configuration is needed — every entry point is a static met
 - **Provider detection** - `ToolCallParserFactory.DetectProvider(string | JsonElement)` returns the detected `Provider` (`Provider.Auto` when nothing matches)
 - **5 provider parsers** - `OpenAIToolCallParser`, `AnthropicToolCallParser`, `GoogleToolCallParser`, `CohereToolCallParser`, `BedrockToolCallParser` (namespace `ToolCallParser.Parsers`), reachable via `ToolCallParserFactory.GetParser(Provider)` / `TryGetParser(Provider, out ...)` or by `new`. They cover OpenAI, Azure OpenAI, xAI, Mistral, DeepSeek, Claude, Gemini, Command R and Bedrock. Two of them read more than one wire format: OpenAI (Chat Completions + Responses) and Google (generateContent + Interactions). `GetParser(Provider.Auto)` throws — use `Parse`/`DetectProvider` for detection
 - **Self-hosted / compatible endpoints** - any OpenAI-compatible server (Ollama, vLLM, LM Studio, LocalAI, TGI, GpuStack, Qwen, …) via `Provider.OpenAICompatible`; Anthropic-compatible endpoints via `Provider.AnthropicCompatible`
-- **Typed argument access** - `ToolCall.GetArgument<T>(name)`, `GetArguments<T>()`, `HasArgument(name)`, `GetArgumentsAsJson()`
+- **Tool calls written as text** - `ToolCallMarkup.Read(text)` reads the calls an open model wrote in its chat template's markup when the serving endpoint's parser missed them — Hermes / Qwen 2.5 `<tool_call>{json}</tool_call>` and Qwen3-Coder `<function=Name><parameter=x>…` (wrapped or not) — as name + arguments, plus the prose before them and where a block the text ends inside begins; `ToolCallMarkup.Scan(text)` tells a streaming reader whether to hold output (`None` / `Partial` / `Found`)
+- **Typed argument access** - `ToolCall.GetArgument<T>(name)`, `GetArguments<T>()` (property names match case-insensitively by default — `ToolCall.DefaultArgumentOptions`), `HasArgument(name)`, `GetArgumentsAsJson()`
+- **One answer per input** - detection, `HasToolCalls` and `Parse` agree: text that is not JSON (a plain-text answer) has no tool calls; a call whose arguments are not a JSON object throws `FormatException` naming the tool; a streaming chunk (`choices[].delta`) counts only for calls complete within it — accumulate the stream first
 - **Result formatting** - `IToolCallParser.FormatResults(IEnumerable<ToolCallResult>)` with `ToolCallResult.Success(...)` / `Failure(...)`; for Gemini's Interactions surface use `GoogleToolCallParser.FormatResults(results, GoogleSurface.Interactions)`
 - **Format categories** - `Provider.GetFormat()`, `IsOpenAICompatible()`, `IsAnthropicCompatible()`, `GetDocumentationUrl()`; `ToolCallParserFactory.GetRegisteredProviders()` / `GetOpenAICompatibleProviders()` list what the factory serves
 - **Extensible** - implement `IToolCallParser` (override `CanParse` to control recognition; it defaults to `HasToolCalls`) and call it directly — the factory is a fixed set, not a registry
@@ -207,6 +209,28 @@ var docUrl = provider.GetDocumentationUrl();
   "stopReason": "tool_use"
 }
 ```
+
+## Tool Calls Written as Text
+
+```csharp
+var text = """
+    Saving it.
+    <tool_call>
+    {"name": "write_file", "arguments": {"path": "a.txt"}}
+    </tool_call>
+    """;
+var read = ToolCallMarkup.Read(text);
+
+Console.WriteLine(read.Prefix); // "Saving it."
+foreach (var block in read.Blocks.Where(b => b.IsWellFormed))
+{
+    // A JSON block gives Arguments (a JSON object); a Qwen3-Coder function block gives Parameters as written.
+    Console.WriteLine($"{block.Name}: {block.Arguments ?? string.Join(", ", block.Parameters.Select(p => p.Key))}");
+}
+```
+
+Whether a block is a call to run — the tool is one you offered, calls are allowed — is your decision, as is typing a
+function block's parameter text against the tool's schema.
 
 ## Working with Arguments
 

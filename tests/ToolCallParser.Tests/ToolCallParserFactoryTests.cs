@@ -180,12 +180,6 @@ public class ToolCallParserFactoryTests
     }
 
     [Fact]
-    public void Parse_InvalidJson_ThrowsJsonException()
-    {
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => ToolCallParserFactory.Parse("not json"));
-    }
-
-    [Fact]
     public void DetectProvider_NullOrEmpty_ReturnsAuto()
     {
         Assert.Equal(Provider.Auto, ToolCallParserFactory.DetectProvider(string.Empty));
@@ -443,12 +437,6 @@ public class ToolCallParserFactoryTests
         Assert.False(ToolCallParserFactory.HasToolCalls(string.Empty));
         Assert.False(ToolCallParserFactory.HasToolCalls((string)null!));
         Assert.False(ToolCallParserFactory.HasToolCalls("  "));
-    }
-
-    [Fact]
-    public void HasToolCalls_InvalidJson_ThrowsJsonException()
-    {
-        Assert.ThrowsAny<System.Text.Json.JsonException>(() => ToolCallParserFactory.HasToolCalls("not json"));
     }
 
     [Fact]

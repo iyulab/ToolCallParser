@@ -34,3 +34,32 @@ internal static class JsonElementExtensions
         return element.TryGetProperty(propertyName, out value);
     }
 }
+
+/// <summary>
+/// Reads a response text that may not be JSON at all.
+/// </summary>
+internal static class JsonText
+{
+    /// <summary>
+    /// Parses <paramref name="text"/>, or returns <c>false</c> when it is empty or not JSON — a plain-text answer holds no
+    /// tool calls, so the string overloads answer «none» for it instead of throwing.
+    /// </summary>
+    internal static bool TryParse(string? text, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out JsonDocument? document)
+    {
+        document = null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        try
+        {
+            document = JsonDocument.Parse(text);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+}

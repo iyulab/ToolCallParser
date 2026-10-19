@@ -8,6 +8,12 @@ namespace ToolCallParser;
 public sealed record ToolCall
 {
     /// <summary>
+    /// The options <see cref="GetArguments{T}"/> and <see cref="GetArgument{T}"/> use when none are given: property names
+    /// match case-insensitively, so JSON <c>location</c> binds to a C# <c>Location</c> property.
+    /// </summary>
+    public static JsonSerializerOptions DefaultArgumentOptions { get; } = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
     /// Unique identifier for this tool call.
     /// For OpenAI, this is the tool_call id.
     /// For Anthropic, this is generated from the tool_use block id.
@@ -33,11 +39,12 @@ public sealed record ToolCall
     }
 
     /// <summary>
-    /// Gets the arguments deserialized to the specified type.
+    /// Gets the arguments deserialized to the specified type — with <see cref="DefaultArgumentOptions"/> unless
+    /// <paramref name="options"/> are given.
     /// </summary>
     public T? GetArguments<T>(JsonSerializerOptions? options = null)
     {
-        return JsonSerializer.Deserialize<T>(Arguments, options);
+        return JsonSerializer.Deserialize<T>(Arguments, options ?? DefaultArgumentOptions);
     }
 
     /// <summary>
@@ -48,7 +55,7 @@ public sealed record ToolCall
         using var doc = GetArgumentsAsJson();
         if (doc.RootElement.TryGetProperty(name, out var element))
         {
-            return element.Deserialize<T>(options);
+            return element.Deserialize<T>(options ?? DefaultArgumentOptions);
         }
 
         return default;

@@ -58,13 +58,15 @@ public sealed class OpenAIToolCallParser : IToolCallParser
     /// <inheritdoc />
     public IReadOnlyList<ToolCall> Parse(string response)
     {
-        if (string.IsNullOrWhiteSpace(response))
+        if (!JsonText.TryParse(response, out var doc))
         {
             return [];
         }
 
-        using var doc = JsonDocument.Parse(response);
-        return Parse(doc.RootElement);
+        using (doc)
+        {
+            return Parse(doc.RootElement);
+        }
     }
 
     /// <inheritdoc />
@@ -73,10 +75,15 @@ public sealed class OpenAIToolCallParser : IToolCallParser
         var results = new List<ToolCall>();
 
         // Try to find tool_calls in various locations
-        if (TryGetToolCallsElement(element, out var toolCallsElement))
+        if (TryGetToolCallsElement(element, out var toolCallsElement, out var isDelta))
         {
             foreach (var toolCall in toolCallsElement.EnumerateArray())
             {
+                if (isDelta && !IsCompleteDeltaCall(toolCall))
+                {
+                    continue;
+                }
+
                 var parsed = ParseToolCall(toolCall);
                 if (parsed != null)
                 {
@@ -104,19 +111,22 @@ public sealed class OpenAIToolCallParser : IToolCallParser
     /// <inheritdoc />
     public bool HasToolCalls(string response)
     {
-        if (string.IsNullOrWhiteSpace(response))
+        if (!JsonText.TryParse(response, out var doc))
         {
             return false;
         }
 
-        using var doc = JsonDocument.Parse(response);
-        return HasToolCalls(doc.RootElement);
+        using (doc)
+        {
+            return HasToolCalls(doc.RootElement);
+        }
     }
 
     /// <inheritdoc />
     public bool HasToolCalls(JsonElement element)
     {
-        return TryGetToolCallsElement(element, out var toolCalls) && toolCalls.GetArrayLength() > 0
+        return TryGetToolCallsElement(element, out var toolCalls, out var isDelta)
+                && toolCalls.EnumerateArray().Any(c => !isDelta || IsCompleteDeltaCall(c))
             || TryGetFunctionCallElement(element, out _)
             || HasResponsesFunctionCallItems(element);
     }
@@ -134,9 +144,10 @@ public sealed class OpenAIToolCallParser : IToolCallParser
         return JsonSerializer.Serialize(messages, JsonOptions);
     }
 
-    private static bool TryGetToolCallsElement(JsonElement element, out JsonElement toolCalls)
+    private static bool TryGetToolCallsElement(JsonElement element, out JsonElement toolCalls, out bool isDelta)
     {
         toolCalls = default;
+        isDelta = false;
 
         // Direct tool_calls array
         if (element.TryGetObjectProperty("tool_calls", out toolCalls) && toolCalls.ValueKind == JsonValueKind.Array)
@@ -156,11 +167,12 @@ public sealed class OpenAIToolCallParser : IToolCallParser
                     return true;
                 }
 
-                // Also check delta for streaming responses
+                // A streaming chunk. Only calls complete within the chunk are read (see IsCompleteDeltaCall).
                 if (choice.TryGetObjectProperty("delta", out var delta) &&
                     delta.TryGetObjectProperty("tool_calls", out toolCalls) &&
                     toolCalls.ValueKind == JsonValueKind.Array)
                 {
+                    isDelta = true;
                     return true;
                 }
             }
@@ -207,34 +219,103 @@ public sealed class OpenAIToolCallParser : IToolCallParser
 
     private static ToolCall? ParseToolCall(JsonElement element)
     {
-        if (!element.TryGetObjectProperty("id", out var idElement))
-        {
-            return null;
-        }
-
         if (!element.TryGetObjectProperty("function", out var functionElement))
         {
             return null;
         }
 
-        if (!functionElement.TryGetObjectProperty("name", out var nameElement))
+        if (!functionElement.TryGetObjectProperty("name", out var nameElement) || nameElement.ValueKind != JsonValueKind.String)
         {
             return null;
         }
 
-        var arguments = "{}";
-        if (functionElement.TryGetObjectProperty("arguments", out var argsElement))
-        {
-            arguments = argsElement.GetString() ?? "{}";
-        }
+        var name = nameElement.GetString()!;
+
+        // Ollama's native /api/chat gives no id; a call without one is still a call.
+        var id = element.TryGetObjectProperty("id", out var idElement) && idElement.ValueKind == JsonValueKind.String
+            ? idElement.GetString()!
+            : NewCallId();
 
         return new ToolCall
         {
-            Id = idElement.GetString() ?? string.Empty,
-            Name = nameElement.GetString() ?? string.Empty,
-            Arguments = arguments
+            Id = id,
+            Name = name,
+            Arguments = ReadArguments(functionElement, name)
         };
     }
+
+    /// <summary>
+    /// Whether a streamed <c>tool_calls</c> entry is a whole call: a name and arguments that already read as a JSON
+    /// object. A chunk usually carries a fragment — the id and name with <c>arguments: ""</c>, or an arguments fragment
+    /// with no name — which is not a call until the stream is accumulated. Some servers send a whole call in one chunk.
+    /// </summary>
+    private static bool IsCompleteDeltaCall(JsonElement toolCall)
+    {
+        if (!toolCall.TryGetObjectProperty("function", out var function)
+            || !function.TryGetObjectProperty("name", out var name) || name.ValueKind != JsonValueKind.String
+            || !function.TryGetObjectProperty("arguments", out var args))
+        {
+            return false;
+        }
+
+        if (args.ValueKind == JsonValueKind.Object)
+        {
+            return true;
+        }
+
+        if (args.ValueKind != JsonValueKind.String || !JsonText.TryParse(args.GetString(), out var doc))
+        {
+            return false;
+        }
+
+        using (doc)
+        {
+            return doc.RootElement.ValueKind == JsonValueKind.Object;
+        }
+    }
+
+    /// <summary>
+    /// The call's arguments as a JSON object text. The wire gives them as a JSON-encoded string (OpenAI) or as an
+    /// object (Ollama's native API); either is accepted, absent or <c>null</c> is <c>{}</c>.
+    /// </summary>
+    /// <exception cref="FormatException">The arguments are not a JSON object — the model wrote a call whose arguments
+    /// cannot be read.</exception>
+    private static string ReadArguments(JsonElement owner, string name)
+    {
+        if (!owner.TryGetObjectProperty("arguments", out var args) || args.ValueKind == JsonValueKind.Null)
+        {
+            return "{}";
+        }
+
+        if (args.ValueKind == JsonValueKind.Object)
+        {
+            return args.GetRawText();
+        }
+
+        if (args.ValueKind == JsonValueKind.String)
+        {
+            var text = args.GetString()!;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return "{}";
+            }
+
+            if (JsonText.TryParse(text, out var doc))
+            {
+                using (doc)
+                {
+                    if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                    {
+                        return text;
+                    }
+                }
+            }
+        }
+
+        throw new FormatException($"Tool call '{name}' has arguments that are not a JSON object.");
+    }
+
+    private static string NewCallId() => $"call_{Guid.NewGuid():N}"[..29];
 
     /// <summary>
     /// Detects Responses API function-call items: either a top-level <c>output</c> array
@@ -324,21 +405,14 @@ public sealed class OpenAIToolCallParser : IToolCallParser
                 ? itemId.GetString()
                 : null;
 
-        var arguments = "{}";
-        if (element.TryGetObjectProperty("arguments", out var argsElement))
-        {
-            // Arguments are a JSON-encoded string in the Responses API; tolerate an
-            // already-parsed object as well (seen in adjacent item-style formats).
-            arguments = argsElement.ValueKind == JsonValueKind.String
-                ? argsElement.GetString() ?? "{}"
-                : argsElement.GetRawText();
-        }
+        var name = nameElement.GetString() ?? string.Empty;
 
         return new ToolCall
         {
-            Id = id ?? $"call_{Guid.NewGuid():N}"[..29],
-            Name = nameElement.GetString() ?? string.Empty,
-            Arguments = arguments
+            Id = id ?? NewCallId(),
+            Name = name,
+            // A JSON-encoded string in the Responses API; an already-parsed object is accepted too.
+            Arguments = ReadArguments(element, name)
         };
     }
 
@@ -349,20 +423,14 @@ public sealed class OpenAIToolCallParser : IToolCallParser
             return null;
         }
 
-        var arguments = "{}";
-        if (element.TryGetObjectProperty("arguments", out var argsElement))
-        {
-            arguments = argsElement.GetString() ?? "{}";
-        }
+        var name = nameElement.GetString() ?? string.Empty;
 
-        // Generate an ID for legacy function calls
-        var id = $"call_{Guid.NewGuid():N}"[..29];
-
+        // Legacy function calls carry no id.
         return new ToolCall
         {
-            Id = id,
-            Name = nameElement.GetString() ?? string.Empty,
-            Arguments = arguments
+            Id = NewCallId(),
+            Name = name,
+            Arguments = ReadArguments(element, name)
         };
     }
 }

@@ -88,13 +88,15 @@ public static class ToolCallParserFactory
     /// <returns>List of parsed tool calls</returns>
     public static IReadOnlyList<ToolCall> Parse(string response)
     {
-        if (string.IsNullOrWhiteSpace(response))
+        if (!JsonText.TryParse(response, out var doc))
         {
             return [];
         }
 
-        using var doc = JsonDocument.Parse(response);
-        return Parse(doc.RootElement);
+        using (doc)
+        {
+            return Parse(doc.RootElement);
+        }
     }
 
     /// <summary>
@@ -142,13 +144,15 @@ public static class ToolCallParserFactory
     /// <returns>The detected provider or Auto if unknown</returns>
     public static Provider DetectProvider(string response)
     {
-        if (string.IsNullOrWhiteSpace(response))
+        if (!JsonText.TryParse(response, out var doc))
         {
             return Provider.Auto;
         }
 
-        using var doc = JsonDocument.Parse(response);
-        return DetectProvider(doc.RootElement);
+        using (doc)
+        {
+            return DetectProvider(doc.RootElement);
+        }
     }
 
     /// <summary>
@@ -200,13 +204,15 @@ public static class ToolCallParserFactory
     /// <returns>True if tool calls are present</returns>
     public static bool HasToolCalls(string response)
     {
-        if (string.IsNullOrWhiteSpace(response))
+        if (!JsonText.TryParse(response, out var doc))
         {
             return false;
         }
 
-        using var doc = JsonDocument.Parse(response);
-        return HasToolCalls(doc.RootElement);
+        using (doc)
+        {
+            return HasToolCalls(doc.RootElement);
+        }
     }
 
     /// <summary>
